@@ -1,0 +1,63 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast gate on every push and PR.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm test
+
+  # The APK build pulls the full Android toolchain via Nix, so it's heavier —
+  # run it on main and manual dispatch, but skip it on PRs (which just get the
+  # `check` job above).
+  build-apk:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Reuses flake.nix: the same pinned Android SDK / NDK / JDK that builds
+      # locally on NixOS, so CI and dev share one toolchain. The first run
+      # realises the Android SDK derivation (slow); later runs reuse it.
+      - name: Prebuild the Android project
+        run: nix develop -c npx expo prebuild --platform android --no-install
+
+      - name: Build release APK
+        run: nix develop -c bash -c 'cd android && ./gradlew assembleRelease --no-daemon'
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swang-stodva-app-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
