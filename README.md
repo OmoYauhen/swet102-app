@@ -9,6 +9,12 @@ state — on your phone.
 > **Status: early.** Tested on Android against a real SW102 driving a Bafang
 > BBSHD. iOS is wired up but unverified.
 
+## Demo
+
+![swang-stodva-app live telemetry demo](./assets/demo.gif)
+
+▶ [Full-quality video](./assets/demo.mp4)
+
 ## Features
 
 - Live BLE telemetry from the `swang-stodva` firmware's custom GATT service.
