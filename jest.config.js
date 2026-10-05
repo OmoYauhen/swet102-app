@@ -9,6 +9,8 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   testMatch: ["**/*.test.ts"],
+  // the Nix dev shell ships watchman, which fails in sandboxes; tests needn't watch
+  watchman: false,
   // Tests compile against tsconfig.jest.json, which adds Jest's global types
   // (`expect`, `it`, …) without touching the app's build tsconfig.
   transform: {

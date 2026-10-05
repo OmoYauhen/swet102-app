@@ -1,45 +1,56 @@
-import { useMemo } from "react";
-import {
-  SafeAreaView,
-  StyleSheet,
-  Platform,
-  StatusBar as RNStatusBar,
-} from "react-native";
+import { useState } from "react";
+import { Platform, Pressable, StatusBar as RNStatusBar, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { MockTelemetrySource } from "./src/telemetry/mock-source";
-import { BleTelemetrySource } from "./src/telemetry/ble-source";
-import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { useLink } from "./src/link/use-link";
+import { RideScreen } from "./src/screens/RideScreen";
+import { SetupScreen } from "./src/screens/SetupScreen";
+import { colors } from "./src/screens/ui";
 
-// Use the real BLE source on device; set to false to run the simulated source
-// (e.g. on web/simulator, or when the hardware isn't around). BleTelemetrySource
-// requires the native ble-plx module, so it's only constructed when enabled.
-const USE_BLE = true;
+type Tab = "ride" | "setup";
 
 export default function App() {
-  // One stable source for the app's lifetime — useMemo constructs it once, not
-  // on every render. This is the only place the real and simulated sources are
-  // chosen between; everything downstream depends only on TelemetrySource.
-  const source = useMemo(
-    () => (USE_BLE ? new BleTelemetrySource() : new MockTelemetrySource()),
-    [],
-  );
+  const link = useLink();
+  const [tab, setTab] = useState<Tab>("ride");
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <StatusBar style="light" />
-      <DashboardScreen source={source} />
-    </SafeAreaView>
+      <View style={styles.tabs}>
+        <Text style={styles.title}>swet102</Text>
+        {(["ride", "setup"] as Tab[]).map((t) => (
+          <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabOn]}>
+            <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>
+              {t === "ride" ? "Ride" : "Setup"}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {!link.available ? (
+        <Text style={styles.unavailable}>
+          The display link needs the Android build (npx expo run:android); it isn't
+          available on web, iOS or in Expo Go.
+        </Text>
+      ) : tab === "ride" ? (
+        <RideScreen link={link} />
+      ) : (
+        <SetupScreen link={link} />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#0f1115",
-    // Android draws content under the translucent status bar / camera cutout,
-    // and RN's SafeAreaView only insets on iOS — so push everything down by the
-    // status bar height (which includes the cutout inset), plus a little room.
-    paddingTop:
-      Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 0) + 8 : 0,
+    backgroundColor: colors.bg,
+    // RN's SafeAreaView only insets on iOS; Android draws under the status bar.
+    paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight ?? 0) + 8 : 0,
   },
+  tabs: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
+  title: { color: colors.text, fontSize: 20, fontWeight: "800", flex: 1, letterSpacing: 1 },
+  tab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.card },
+  tabOn: { backgroundColor: colors.accent },
+  tabText: { color: colors.muted, fontWeight: "600" },
+  tabTextOn: { color: "#fff" },
+  unavailable: { color: colors.muted, padding: 20 },
 });

@@ -1,7 +1,7 @@
 {
-  "name": "swang-stodva-app",
+  "name": "swet102-app",
   "version": "1.0.0",
-  "description": "React Native / Expo companion app that reads live BLE telemetry from the swang-stodva SW102 e-bike display firmware.",
+  "description": "Android companion app for the Swet102 SW102 e-bike display: telemetry, trips, media control and Home Assistant gates over BLE.",
   "keywords": [
     "expo",
     "react-native",
@@ -16,18 +16,16 @@
   "author": "Omo Yauhen",
   "repository": {
     "type": "git",
-    "url": "https://github.com/OmoYauhen/swang-stodva-app.git"
+    "url": "https://github.com/OmoYauhen/swet102-app.git"
   },
   "main": "index.ts",
   "dependencies": {
-    "base64-js": "^1.5.1",
     "expo": "~57.0.12",
     "expo-dev-client": "~57.0.11",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
-    "react-native-ble-plx": "^3.5.1",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {

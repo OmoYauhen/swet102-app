@@ -1,0 +1,90 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="app.swet102.link" >
+4
+5    <uses-sdk android:minSdkVersion="24" />
+6    <!-- BLE: scan only to find the display once; never used for location -->
+7    <uses-permission
+7-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:3:5-4:58
+8        android:name="android.permission.BLUETOOTH_SCAN"
+8-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:3:22-70
+9        android:usesPermissionFlags="neverForLocation" />
+9-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:4:9-55
+10    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+10-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:5:5-76
+10-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:5:22-73
+11    <!-- Android 11 and older -->
+12    <uses-permission
+12-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:7:5-95
+13        android:name="android.permission.BLUETOOTH"
+13-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:7:22-65
+14        android:maxSdkVersion="30" />
+14-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:7:66-92
+15    <uses-permission
+15-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:8:5-101
+16        android:name="android.permission.BLUETOOTH_ADMIN"
+16-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:8:22-71
+17        android:maxSdkVersion="30" />
+17-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:8:72-98
+18    <uses-permission
+18-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:9:5-106
+19        android:name="android.permission.ACCESS_FINE_LOCATION"
+19-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:9:22-76
+20        android:maxSdkVersion="30" />
+20-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:9:77-103
+21    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+21-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:11:5-77
+21-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:11:22-74
+22    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+22-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:12:5-94
+22-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:12:22-91
+23    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+23-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:13:5-77
+23-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:13:22-74
+24    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+24-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:14:5-81
+24-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:14:22-78
+25    <uses-permission android:name="android.permission.INTERNET" />
+25-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:15:5-67
+25-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:15:22-64
+26    <uses-permission android:name="android.permission.VIBRATE" />
+26-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:16:5-66
+26-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:16:22-63
+27
+28    <uses-feature
+28-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:18:5-90
+29        android:name="android.hardware.bluetooth_le"
+29-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:18:19-63
+30        android:required="true" />
+30-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:18:64-87
+31
+32    <application>
+32-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:20:5-34:19
+33        <service
+33-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:21:9-24:63
+34            android:name="app.swet102.link.SwetLinkService"
+34-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:22:13-60
+35            android:exported="false"
+35-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:23:13-37
+36            android:foregroundServiceType="connectedDevice" />
+36-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:24:13-60
+37
+38        <receiver
+38-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:26:9-33:20
+39            android:name="app.swet102.link.BootReceiver"
+39-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:27:13-57
+40            android:exported="true" >
+40-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:28:13-36
+41            <intent-filter>
+41-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:29:13-32:29
+42                <action android:name="android.intent.action.BOOT_COMPLETED" />
+42-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:30:17-79
+42-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:30:25-76
+43                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+43-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:31:17-84
+43-->/home/technodzik/git/swet102-app/modules/swet-link/android/src/main/AndroidManifest.xml:31:25-81
+44            </intent-filter>
+45        </receiver>
+46    </application>
+47
+48</manifest>

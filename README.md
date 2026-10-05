@@ -1,124 +1,84 @@
-# swang-stodva-app
+# swet102-app
 
-A React Native / Expo companion app for the
-[**swang-stodva**](https://github.com/OmoYauhen/swang-stodva) SW102 e-bike
-display firmware. It connects to the display over Bluetooth Low Energy and shows
-live telemetry — speed, battery, power, current, assist level, brake and light
-state — on your phone.
+Android companion app for [**Swet102**](https://github.com/OmoYauhen/swet102),
+the firmware for the Bafang SW102 display on one e-bike (PET). Started as a copy
+of [swang-stodva-app](https://github.com/OmoYauhen/swang-stodva-app).
 
-> **Status: early.** Tested on Android against a real SW102 driving a Bafang
-> BBSHD. iOS is wired up but unverified.
+What it's for: the display's **Player** and **Gate** pages. A press on the
+handlebar becomes a notification over BLE; this app turns it into:
 
-## Demo
+| Display | Phone |
+|---|---|
+| Player: LEFT click / RIGHT click | music volume − / + |
+| Player: LEFT hold / RIGHT hold | previous / next track (media key to whatever is playing) |
+| Player: RIGHT double-click | play / pause |
+| Gate: LEFT / RIGHT | a Home Assistant service call for gate A / gate B |
 
-![swang-stodva-app live telemetry demo](./assets/demo.gif)
+It also shows the display's telemetry (speed, power, battery, PAS, city/sport,
+lights, motor errors) and trips (ride, trip, battery trip, odometer with
+max/avg/Ah), and can reboot the display into DFU for a firmware update.
 
-▶ [Full-quality video](./assets/demo.mp4)
-
-## Features
-
-- Live BLE telemetry from the `swang-stodva` firmware's custom GATT service.
-- Clean dashboard: speed, battery %, estimated power, current, assist, brake/lights.
-- A built-in **simulated source**, so the UI runs with no hardware (browser or
-  simulator).
-- Fully local Android builds on NixOS via a `flake.nix` dev shell — no cloud build required.
+> **Status: new, untested on hardware.** Android only.
 
 ## How it works
 
-The app is built around a single `TelemetrySource` interface (`src/telemetry/`):
+Everything that has to work with the phone locked in a pocket is native Kotlin,
+in a local Expo module (`modules/swet-link`). The React Native UI only shows
+state and edits settings.
 
-- `BleTelemetrySource` — scans for the `swang-stodva` device by name, connects,
-  and subscribes to the telemetry characteristic.
-- `MockTelemetrySource` — fabricates plausible telemetry on a timer for
-  hardware-free development.
+- **`SwetLinkService`**: a foreground service (ongoing notification, type
+  `connectedDevice`). It calls `connectGatt(address, autoConnect = true)`, so
+  Android connects in the background whenever the display turns on. No scanning
+  after the first pairing. On every connect it subscribes to commands, telemetry
+  and trips again (the display doesn't bond, so it keeps no subscriptions). It
+  starts again after a phone reboot or an app update, if it was on.
+- **Commands**: volume through `AudioManager`, tracks and play/pause as media key
+  events (like a headset button). Gates go to Home Assistant on a worker
+  thread. Repeated notifications (same `seq`) are ignored.
+- **Feedback** for gates, since you can't look at the phone while riding: **one
+  short buzz** means it worked, **three** mean it failed. The Ride tab lists the
+  recent commands and gate results.
 
-Both feed raw 14-byte packets through the same `parseTelemetry()` decoder, so the
-UI is identical whether the data is real or simulated. Toggle between them with
-`USE_BLE` in `App.tsx`.
+Protocol: swet102 `docs/TECH_DESIGN.md` §9.4. GATT base UUID
+`8f03xxxx-da4c-453d-a163-41a592a0e9fd`, service `0001`, telemetry `0002`, command
+`0003`, control `0004`, trips `0005`. Decoders: `src/protocol` (TypeScript) and
+`Protocol.kt` (commands).
 
-## BLE protocol
+## Setup
 
-The firmware exposes a custom 128-bit telemetry service. It is **not advertised**
-(only the 16-bit standard services fit the scan response), so the app scans by
-device name and discovers it after connecting.
+1. Install the app (below), open **Setup → Find swet102** with the display on.
+   That saves its address and starts the link.
+2. Allow the app to **ignore battery optimisation** (button in Setup); some
+   phones kill background services otherwise.
+3. **Gates:** enter your Home Assistant URL and a
+   [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile)
+   (profile → Security), then a service and an entity for each gate, e.g.
+   `button.press` + `button.gate_a`, or `switch.turn_on` + `switch.garage`, or
+   `script.turn_on` + `script.open_gate`. The app sends
+   `POST <url>/api/services/<domain>/<service>` with `{"entity_id": "<entity>"}`.
+   **Test A / Test B** run the same call.
 
-| | UUID |
-|---|---|
-| Telemetry service | `57430001-9a43-11e5-a58f-0002a5d5c51b` |
-| Telemetry characteristic (read + notify) | `57430002-9a43-11e5-a58f-0002a5d5c51b` |
+The URL must be reachable from wherever you ride (Nabu Casa, your own HTTPS
+domain, or a VPN). The token is kept in the app's private storage on the phone.
 
-The characteristic notifies a packed, little-endian 14-byte struct:
+## Build
 
-| Offset | Field | Type | Scale |
-|---|---|---|---|
-| 0 | version | u8 | — |
-| 1 | speed | i16 | ÷10 → km/h |
-| 3 | soc | u8 | % |
-| 4 | power | i16 | W |
-| 6 | volts | u16 | ÷10 → V |
-| 8 | amps | u16 | ÷5 → A |
-| 10 | motor temp | i8 | °C |
-| 11 | assist level | u8 | — |
-| 12 | brake | u8 | 0/1 |
-| 13 | lights | u8 | 0/1 |
-
-## Requirements
-
-- Node 22+ and npm.
-- For real BLE: a physical **Android** device (BLE doesn't work in Expo Go,
-  simulators, or web) and a `swang-stodva` display.
-- On NixOS, the included `flake.nix` provides the Android SDK/NDK + JDK toolchain.
-
-## Getting started
-
-Install dependencies:
+On NixOS the flake provides the Android SDK/NDK, JDK and Node:
 
 ```bash
 npm install
+nix develop -c npx expo run:android        # build + install on a USB-connected phone
 ```
 
-### Simulated mode (no hardware)
-
-Set `USE_BLE = false` in `App.tsx`, then:
-
 ```bash
-npm run web
-```
-
-### Real device (Android)
-
-BLE requires a native build, not Expo Go. On NixOS, build and install to a
-connected phone (USB debugging enabled) in one command:
-
-```bash
-nix develop -c npx expo run:android
-```
-
-Then start Metro and reload:
-
-```bash
-npx expo start --dev-client
-# if the phone can't reach Metro over the network (e.g. NixOS firewall):
-adb reverse tcp:8081 tcp:8081
-```
-
-Set `USE_BLE = true` in `App.tsx`, power on the display, and reload.
-
-## Development
-
-```bash
-npm test         # unit tests (ts-jest)
+npm test                 # protocol decoders (jest)
 npm run type-check
+nix develop -c bash -c 'npx expo prebuild -p android && cd android && ./gradlew :swet-link:testDebugUnitTest'
+                         # Kotlin unit tests: command parsing, dedup, HA request
 ```
 
-## Notes
-
-- **Stock Bafang firmware** doesn't report battery voltage or motor temperature,
-  so those tiles are hidden and power is estimated from current × a nominal pack
-  voltage (`NOMINAL_PACK_VOLTAGE` in `src/screens/DashboardScreen.tsx`). Set it to
-  your battery. Running `bbs-fw` on the motor exposes the real values.
-- Update latency is bounded by the firmware's BLE connection interval
-  (`MIN/MAX_CONN_INTERVAL` in the firmware), not by the app.
+The UI also opens on web (`npm run web`), but without the native module it only
+says that the link needs Android.
 
 ## License
 

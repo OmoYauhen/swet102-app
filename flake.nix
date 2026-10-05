@@ -1,5 +1,5 @@
 {
-  description = "swang-stodva-app — Expo/React Native companion app for the SW102 display";
+  description = "swet102-app — Android companion app for the Swet102 SW102 display";
 
   # Usage:
   #   nix develop                      dev shell: Android SDK/NDK + JDK 17 + Node
@@ -76,7 +76,7 @@
             # adb, fastboot, etc.
             export PATH="${sdkRoot}/platform-tools:$PATH"
 
-            echo "swang-stodva-app dev shell"
+            echo "swet102-app dev shell"
             echo "  ANDROID_HOME=$ANDROID_HOME"
             echo "  build a debug APK:  npx expo run:android   (phone via USB, USB debugging on)"
           '';
