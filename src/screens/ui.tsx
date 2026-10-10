@@ -2,15 +2,21 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinkState } from "../../modules/swet-link";
 
 export const colors = {
-  bg: "#0f1115",
-  card: "#1f2937",
+  bg: "#07090c",
+  card: "#141a22",
+  line: "#232c38",
   text: "#f3f4f6",
-  muted: "#9ca3af",
-  accent: "#2563eb",
+  muted: "#8b95a3",
+  dim: "#4b5563",
+  accent: "#0ea5e9",
+  cyan: "#38bdf8",
+  green: "#22c55e",
+  amber: "#f59e0b",
+  red: "#ef4444",
 };
 
 export function StatusBadge({ state }: { state: LinkState }) {
-  const color = state === "connected" ? "#22c55e" : state === "off" ? "#6b7280" : "#eab308";
+  const color = state === "connected" ? colors.green : state === "off" ? colors.dim : colors.amber;
   return (
     <View style={styles.badge}>
       <View style={[styles.dot, { backgroundColor: color }]} />

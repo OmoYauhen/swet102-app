@@ -170,7 +170,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 const styles = StyleSheet.create({
   container: { padding: 20, gap: 20 },
-  section: { backgroundColor: "#151922", borderRadius: 14, padding: 16, gap: 10 },
+  section: {
+    backgroundColor: "#0e1218",
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
   heading: { color: colors.text, fontSize: 18, fontWeight: "700" },
   text: { color: colors.text },
   label: { color: colors.muted, marginTop: 6 },

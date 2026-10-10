@@ -7,6 +7,13 @@
   #                                    prebuild + build + install to a connected
   #                                    phone (USB debugging) in one shot, then
   #                                    starts Metro. This is the "one command".
+  #   nix develop .#emulator -c swet-emu
+  #                                    boots an Android 35 emulator (AVD "swet102",
+  #                                    created on first run). Then, from the
+  #                                    default shell:
+  #                                      EXPO_PUBLIC_DEMO=1 npx expo run:android
+  #                                    The emulator has no BLE path to the real
+  #                                    display, so demo mode feeds fake telemetry.
   #
   # This is a dev SHELL, not a hermetic `nix build`: it pins the toolchain, but
   # Gradle/npm still fetch their own deps over the network at build time. A fully
@@ -52,7 +59,55 @@
 
         androidSdk = androidComposition.androidsdk;
         sdkRoot = "${androidSdk}/libexec/android-sdk";
+
+        # A separate SDK just to run an emulator: the emulator and one system
+        # image are a few GB, so the default (and CI) shell doesn't pull them.
+        # androidenv fetches an image per platform version, hence only "35".
+        emuSdk = (pkgs.androidenv.composeAndroidPackages {
+          platformVersions = [ "35" ];
+          includeEmulator = true;
+          includeSystemImages = true;
+          systemImageTypes = [ "google_apis" ];
+          abiVersions = [ "x86_64" ];
+        }).androidsdk;
+        emuRoot = "${emuSdk}/libexec/android-sdk";
+
+        # Creates the AVD on first run, then boots it. Extra args go to the
+        # emulator, e.g. `swet-emu -gpu swiftshader_indirect` if host GL fails.
+        # avdmanager (XDG_CONFIG_HOME) and the emulator (~/.android) look in
+        # different places, so pin both. Device profiles don't load from the
+        # Nix store (no devices.xml), so the screen is set in config.ini.
+        swetEmu = pkgs.writeShellScriptBin "swet-emu" ''
+          set -eu
+          export ANDROID_HOME=${emuRoot} ANDROID_SDK_ROOT=${emuRoot}
+          export ANDROID_AVD_HOME="${"$"}{ANDROID_AVD_HOME:-$HOME/.android/avd}"
+          # The emulator's Qt has no Wayland plugin; go through Xwayland. And
+          # NixOS keeps the GL drivers where a store binary doesn't look.
+          export QT_QPA_PLATFORM=xcb
+          export LD_LIBRARY_PATH="/run/opengl-driver/lib${"$"}{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          if [ ! -f "$ANDROID_AVD_HOME/swet102.ini" ]; then
+            echo no | ${emuSdk}/bin/avdmanager create avd \
+              -n swet102 -k "system-images;android-35;google_apis;x86_64"
+            cat >> "$ANDROID_AVD_HOME/swet102.avd/config.ini" <<CONF
+          hw.lcd.width=1080
+          hw.lcd.height=2400
+          hw.lcd.density=420
+          hw.ramSize=4096
+          hw.keyboard=yes
+          CONF
+          fi
+          exec ${emuRoot}/emulator/emulator -avd swet102 -gpu host "$@"
+        '';
       in {
+        devShells.emulator = pkgs.mkShell {
+          buildInputs = [ swetEmu ];
+          ANDROID_HOME = emuRoot;
+          ANDROID_SDK_ROOT = emuRoot;
+          shellHook = ''
+            export PATH="${emuRoot}/platform-tools:${emuRoot}/emulator:$PATH"
+          '';
+        };
+
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.jdk17
