@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Platform, Pressable, StatusBar as RNStatusBar, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SwetLink } from "./modules/swet-link";
 import { useLink } from "./src/link/use-link";
 import { RideScreen } from "./src/screens/RideScreen";
 import { SetupScreen } from "./src/screens/SetupScreen";
@@ -16,7 +17,9 @@ export default function App() {
     <View style={styles.root}>
       <StatusBar style="light" />
       <View style={styles.tabs}>
-        <Text style={styles.title}>swet102</Text>
+        <Text style={styles.title}>
+          swet102{link.demo && <Text style={styles.demo}>  DEMO</Text>}
+        </Text>
         {(["ride", "setup"] as Tab[]).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabOn]}>
             <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>
@@ -25,7 +28,7 @@ export default function App() {
           </Pressable>
         ))}
       </View>
-      {!link.available ? (
+      {!link.available || (tab === "setup" && !SwetLink) ? (
         <Text style={styles.unavailable}>
           The display link needs the Android build (npx expo run:android); it isn't
           available on web, iOS or in Expo Go.
@@ -48,6 +51,7 @@ const styles = StyleSheet.create({
   },
   tabs: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
   title: { color: colors.text, fontSize: 20, fontWeight: "800", flex: 1, letterSpacing: 1 },
+  demo: { color: colors.amber, fontSize: 12, fontWeight: "700", letterSpacing: 2 },
   tab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.card },
   tabOn: { backgroundColor: colors.accent },
   tabText: { color: colors.muted, fontWeight: "600" },

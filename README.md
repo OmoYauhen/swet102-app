@@ -20,6 +20,21 @@ max/avg/Ah), and can reboot the display into DFU for a firmware update.
 
 > **Status: new, untested on hardware.** Android only.
 
+## Demo
+
+![Ride screen: car-style dashboard around the PET bike, in demo mode](./assets/demo.gif)
+
+▶ [Full-quality video](./assets/demo.mp4) — the 90 s demo loop, recorded on the
+emulator (see [Emulator and demo mode](#emulator-and-demo-mode)).
+
+The Ride screen is laid out like a car dashboard around a drawing of the bike.
+A speed gauge marks the assist limit and turns amber above it. Four readings
+point to the parts of the bike they come from: odometer to the rear wheel,
+assist to the handlebar display, battery to the pack, and power to the motor.
+The battery pack is coloured by charge, the motor glows with power, and the
+headlamp throws a beam when the lights are on. Status lights for city/sport,
+lights and motor link sit above it.
+
 ## How it works
 
 Everything that has to work with the phone locked in a pocket is native Kotlin,
@@ -78,7 +93,21 @@ nix develop -c bash -c 'npx expo prebuild -p android && cd android && ./gradlew 
 ```
 
 The UI also opens on web (`npm run web`), but without the native module it only
-says that the link needs Android.
+says that the link needs Android, unless demo mode is on (below).
+
+### Emulator and demo mode
+
+The emulator can't reach the display over BLE, so demo mode (`EXPO_PUBLIC_DEMO=1`,
+set at bundle time) replaces the link with a fake 90 s ride that runs through
+every dashboard state:
+
+```bash
+nix develop .#emulator -c swet-emu         # boots AVD "swet102" (created on first run)
+nix develop -c npm run demo:android        # in a second terminal: build, install, Metro
+npm run demo:web                           # or just the Ride screen in a browser
+```
+
+The bike drawing is generated from `assets/pet.svg` by `node scripts/gen-pet.mjs`.
 
 ## License
 

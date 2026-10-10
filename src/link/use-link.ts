@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { LinkState, LogEntry, SwetLink } from "../../modules/swet-link";
 import { fromHex, parseTelemetry, parseTrip, Telemetry, Trip, TripId } from "../protocol";
+import { demoLogBetween, demoTelemetry, demoTrips } from "./demo";
 
 export interface LinkView {
   available: boolean;
+  /** Fake telemetry from ./demo, not the display. */
+  demo?: boolean;
   state: LinkState;
   telemetry: Telemetry | null;
   trips: Partial<Record<TripId, Trip>>;
@@ -18,11 +21,14 @@ function safe<T>(f: () => T): T | null {
   }
 }
 
+/** Set at bundle time: EXPO_PUBLIC_DEMO=1 npx expo run:android (or start --web). */
+const DEMO = process.env.EXPO_PUBLIC_DEMO === "1";
+
 /**
  * Live view of the native link. The service runs whether or not this screen
  * is open; this only listens, starting from the service's last known values.
  */
-export function useLink(): LinkView {
+function useNativeLink(): LinkView {
   const [view, setView] = useState<LinkView>(() => {
     if (!SwetLink) {
       return { available: false, state: "off", telemetry: null, trips: {}, log: [] };
@@ -63,5 +69,32 @@ export function useLink(): LinkView {
     return () => subs.forEach((s) => s.remove());
   }, []);
 
+  return view;
+}
+
+/** The display, or a fake ride when built with EXPO_PUBLIC_DEMO=1. */
+export const useLink: () => LinkView = DEMO ? useDemoLink : useNativeLink;
+
+function demoView(s: number, log: LogEntry[]): LinkView {
+  const trips: Partial<Record<TripId, Trip>> = {};
+  for (const t of demoTrips(s)) trips[t.id] = t;
+  return { available: true, demo: true, state: "connected", telemetry: demoTelemetry(s), trips, log };
+}
+
+function useDemoLink(): LinkView {
+  const [view, setView] = useState(() => demoView(0, []));
+  useEffect(() => {
+    const start = Date.now();
+    let prev = 0;
+    const id = setInterval(() => {
+      const s = (Date.now() - start) / 1000;
+      const entry = demoLogBetween(prev, s);
+      prev = s;
+      setView((v) =>
+        demoView(s, entry ? [...v.log, { at: Date.now(), kind: "gate" as const, ...entry }].slice(-30) : v.log),
+      );
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
   return view;
 }
