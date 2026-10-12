@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { LinkSettings, SwetLink } from "../../modules/swet-link";
 import { LinkView } from "../link/use-link";
-import { requestLinkPermissions } from "../link/permissions";
+import { requestLinkPermissions, requestLocationPermission } from "../link/permissions";
 import { Button, colors, StatusBadge } from "./ui";
 
 /**
@@ -21,6 +21,7 @@ export function SetupScreen({ link }: { link: LinkView }) {
       Alert.alert("Permissions needed", `Refused: ${refused.map((p) => p.split(".").pop()).join(", ")}`);
       return false;
     }
+    await requestLocationPermission(); // optional: sun times fall back to the last place, or Warsaw
     return true;
   }
 

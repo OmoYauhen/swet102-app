@@ -36,6 +36,9 @@ import java.util.concurrent.Executors
  * - On every connect, subscribe to command, telemetry and trips again (no
  *   bonding, so the display keeps no subscriptions).
  * - Commands: volume and media keys locally, gates through Home Assistant.
+ * - Time sync: the display has no clock, so once the link is up and then
+ *   every [TIME_SYNC_MS] we write the local time and today's sunset/sunrise
+ *   to the control characteristic (for its Lights AUTO mode).
  *
  * All GATT work runs on one handler thread; Android allows one GATT operation
  * at a time, so CCCD writes are chained through their callbacks.
@@ -46,6 +49,7 @@ class SwetLinkService : Service() {
         private const val CHANNEL = "link"
         private const val NOTIFICATION_ID = 1
         private const val RECONNECT_DELAY_MS = 1000L
+        private const val TIME_SYNC_MS = 10 * 60 * 1000L
 
         @Volatile var instance: SwetLinkService? = null
             private set
@@ -69,6 +73,8 @@ class SwetLinkService : Service() {
     private var gatt: BluetoothGatt? = null
     private var pendingCccds = ArrayDeque<BluetoothGattDescriptor>()
     private var stopping = false
+    /** Services discovered and subscriptions done. */
+    private var linkUp = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -94,6 +100,7 @@ class SwetLinkService : Service() {
         stopping = true
         unregisterReceiver(adapterState)
         handler.post {
+            linkDown()
             gatt?.disconnect()
             gatt?.close()
             gatt = null
@@ -125,6 +132,7 @@ class SwetLinkService : Service() {
 
     /** Drop this GATT and arm a fresh background connection. */
     private fun reconnect() {
+        linkDown()
         gatt?.close()
         gatt = null
         if (!stopping) handler.postDelayed({ connect() }, RECONNECT_DELAY_MS)
@@ -135,6 +143,7 @@ class SwetLinkService : Service() {
             when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
                 BluetoothAdapter.STATE_ON -> handler.post { connect() }
                 BluetoothAdapter.STATE_OFF -> handler.post {
+                    linkDown()
                     gatt?.close()
                     gatt = null
                     setState("bluetooth off", "Bluetooth is off")
@@ -202,6 +211,8 @@ class SwetLinkService : Service() {
         val d = pendingCccds.removeFirstOrNull()
         if (d == null) {
             setState("connected", "Connected to the display")
+            linkUp = true
+            syncTime()
             return
         }
         val on = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -268,13 +279,42 @@ class SwetLinkService : Service() {
     /** Ask the display to reboot into its bootloader (it refuses while moving). */
     fun rebootToDfu(): Boolean {
         val g = gatt ?: return false
+        return writeControl(g, Protocol.CONTROL_DFU)
+    }
+
+    // ---- time sync ----
+
+    private val timeSync = Runnable { syncTime() }
+
+    /** Send the time now and again in [TIME_SYNC_MS], while the link is up. */
+    private fun syncTime() {
+        handler.removeCallbacks(timeSync)
+        val g = gatt
+        if (!linkUp || g == null) return
+        try {
+            val (lat, lon) = Place.current(this, settings)
+            writeControl(g, Protocol.timeSync(System.currentTimeMillis(), java.util.TimeZone.getDefault(), lat, lon))
+        } catch (_: Exception) {
+            // never let a failed sync take the link down; try again next time
+        }
+        handler.postDelayed(timeSync, TIME_SYNC_MS)
+    }
+
+    private fun linkDown() {
+        linkUp = false
+        handler.removeCallbacks(timeSync)
+    }
+
+    /** One write to the control characteristic, with response (as for DFU). */
+    private fun writeControl(g: BluetoothGatt, value: ByteArray): Boolean {
         val c = g.getService(Protocol.SERVICE)?.getCharacteristic(Protocol.CONTROL) ?: return false
         return if (Build.VERSION.SDK_INT >= 33) {
-            g.writeCharacteristic(c, Protocol.CONTROL_DFU, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) ==
+            g.writeCharacteristic(c, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) ==
                 BluetoothGatt.GATT_SUCCESS
         } else {
+            c.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             @Suppress("DEPRECATION")
-            c.value = Protocol.CONTROL_DFU
+            c.value = value
             @Suppress("DEPRECATION")
             g.writeCharacteristic(c)
         }

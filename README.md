@@ -18,6 +18,10 @@ It also shows the display's telemetry (speed, power, battery, PAS, city/sport,
 lights, motor errors) and trips (ride, trip, battery trip, odometer with
 max/avg/Ah), and can reboot the display into DFU for a firmware update.
 
+The display has no clock, so the app also sends it the **time of day and
+today's sunset and sunrise**. The display's Lights **AUTO** mode uses them to
+turn the bike lights on from 20 minutes before sunset until sunrise.
+
 > **Status: new, untested on hardware.** Android only.
 
 ## Demo
@@ -50,6 +54,14 @@ state and edits settings.
 - **Commands**: volume through `AudioManager`, tracks and play/pause as media key
   events (like a headset button). Gates go to Home Assistant on a worker
   thread. Repeated notifications (same `seq`) are ignored.
+- **Time sync**: as soon as the link is up, then every 10 minutes, the service
+  writes the phone's local time and today's sunset/sunrise to the control
+  characteristic (`'T'`, u32 seconds since local midnight, u16 sunset and u16
+  sunrise in minutes since local midnight, little-endian). Times are wall-clock
+  in the phone's time zone, DST included. Sunrise/sunset are computed offline
+  (NOAA sunrise equation, `Sun.kt`) from the phone's last known coarse location,
+  which is cached so it keeps working without a fresh fix; Warsaw if the app
+  has never had one. A failed write is ignored until the next try.
 - **Feedback** for gates, since you can't look at the phone while riding: **one
   short buzz** means it worked, **three** mean it failed. The Ride tab lists the
   recent commands and gate results.
@@ -63,6 +75,10 @@ Protocol: swet102 `docs/TECH_DESIGN.md` §9.4. GATT base UUID
 
 1. Install the app (below), open **Setup → Find swet102** with the display on.
    That saves its address and starts the link.
+   It also asks for **approximate location**, only for sunrise and sunset
+   (Lights AUTO). It's optional: the app reads the location Android last had
+   (no GPS fix, no Google Play services) and remembers it; without it, it uses
+   the last place it knew, or Warsaw.
 2. Allow the app to **ignore battery optimisation** (button in Setup); some
    phones kill background services otherwise.
 3. **Gates:** enter your Home Assistant URL and a
@@ -89,7 +105,8 @@ nix develop -c npx expo run:android        # build + install on a USB-connected 
 npm test                 # protocol decoders (jest)
 npm run type-check
 nix develop -c bash -c 'npx expo prebuild -p android && cd android && ./gradlew :swet-link:testDebugUnitTest'
-                         # Kotlin unit tests: command parsing, dedup, HA request
+                         # Kotlin unit tests: command parsing, dedup, HA request,
+                         # time-sync payload, sunrise/sunset, DST
 ```
 
 The UI also opens on web (`npm run web`), but without the native module it only

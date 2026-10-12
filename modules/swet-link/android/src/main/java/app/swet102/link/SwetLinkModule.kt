@@ -75,6 +75,8 @@ class SwetLinkModule : Module() {
 
         Function("start") {
             Settings(context).enabled = true
+            // While the UI is in front: cache the location for the service's sun times.
+            Place.current(context, Settings(context))
             SwetLinkService.start(context)
         }
 
