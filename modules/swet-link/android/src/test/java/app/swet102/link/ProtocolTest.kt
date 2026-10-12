@@ -1,5 +1,8 @@
 package app.swet102.link
 
+import java.time.ZonedDateTime
+import java.util.TimeZone
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -37,4 +40,55 @@ class ProtocolTest {
         d.reset() // display rebooted: seq starts at 1 again
         assertTrue(d.accept(a))
     }
+
+    private fun bytes(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
+
+    private fun ms(iso: String): Long = ZonedDateTime.parse(iso).toInstant().toEpochMilli()
+
+    private val warsaw = TimeZone.getTimeZone("Europe/Warsaw")
+
+    @Test
+    fun encodesTimeSyncLittleEndian() {
+        // 23:59:59, sunset 21:01, sunrise 04:14
+        assertArrayEquals(
+            bytes(0x54, 0x7F, 0x51, 0x01, 0x00, 0xED, 0x04, 0xFE, 0x00),
+            Protocol.timeSync(86_399, 1261, 254),
+        )
+        assertArrayEquals(
+            bytes(0x54, 0, 0, 0, 0, 0, 0, 0, 0),
+            Protocol.timeSync(0, 0, 0),
+        )
+    }
+
+    @Test
+    fun timeSyncUsesLocalWallClock() {
+        val p = Protocol.timeSync(ms("2026-06-21T12:34:56+02:00[Europe/Warsaw]"), warsaw, 52.23, 21.01)
+        assertEquals(9, p.size)
+        assertEquals(0x54.toByte(), p[0])
+        assertArrayEquals(u32(12 * 3600 + 34 * 60 + 56), p.copyOfRange(1, 5))
+        assertEquals(Sun.today(ms("2026-06-21T12:00:00+02:00"), warsaw, 52.23, 21.01).sunsetMin, u16(p, 5))
+        assertEquals(Sun.today(ms("2026-06-21T12:00:00+02:00"), warsaw, 52.23, 21.01).sunriseMin, u16(p, 7))
+    }
+
+    @Test
+    fun timeSyncAcrossDst() {
+        // 03:30 CEST just after the spring jump: wall clock, not elapsed time
+        val spring = Protocol.timeSync(ms("2026-03-29T03:30:00+02:00[Europe/Warsaw]"), warsaw, 52.23, 21.01)
+        assertArrayEquals(u32(3 * 3600 + 1800), spring.copyOfRange(1, 5))
+        // 02:30 happens twice when summer time ends; both say 02:30
+        val first = Protocol.timeSync(ms("2026-10-25T02:30:00+02:00"), warsaw, 52.23, 21.01)
+        val second = Protocol.timeSync(ms("2026-10-25T02:30:00+01:00"), warsaw, 52.23, 21.01)
+        assertArrayEquals(u32(2 * 3600 + 1800), first.copyOfRange(1, 5))
+        assertArrayEquals(first, second)
+        // the same instant in UTC is an hour or two earlier on the clock
+        val utc = Protocol.timeSync(ms("2026-06-21T12:00:00Z"), TimeZone.getTimeZone("UTC"), 52.23, 21.01)
+        val local = Protocol.timeSync(ms("2026-06-21T12:00:00Z"), warsaw, 52.23, 21.01)
+        assertArrayEquals(u32(12 * 3600), utc.copyOfRange(1, 5))
+        assertArrayEquals(u32(14 * 3600), local.copyOfRange(1, 5))
+        assertEquals(u16(local, 5) - 120, u16(utc, 5))
+    }
+
+    private fun u32(v: Int) = bytes(v and 0xFF, (v shr 8) and 0xFF, (v shr 16) and 0xFF, (v shr 24) and 0xFF)
+
+    private fun u16(b: ByteArray, at: Int) = (b[at].toInt() and 0xFF) or ((b[at + 1].toInt() and 0xFF) shl 8)
 }

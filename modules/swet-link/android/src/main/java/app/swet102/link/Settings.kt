@@ -27,6 +27,19 @@ class Settings(context: Context) {
         get() = prefs.getString("haToken", "") ?: ""
         set(v) = prefs.edit().putString("haToken", v).apply()
 
+    /** Last known phone location (lat, lon), for sunrise/sunset; null if never known. */
+    var location: Pair<Double, Double>?
+        get() = if (prefs.contains("lat") && prefs.contains("lon")) {
+            prefs.getFloat("lat", 0f).toDouble() to prefs.getFloat("lon", 0f).toDouble()
+        } else {
+            null
+        }
+        set(v) {
+            val e = prefs.edit()
+            if (v == null) e.remove("lat").remove("lon") else e.putFloat("lat", v.first.toFloat()).putFloat("lon", v.second.toFloat())
+            e.apply()
+        }
+
     fun gate(which: Char): HomeAssistant.Gate = HomeAssistant.Gate(
         service = prefs.getString("gate${which}Service", "button.press") ?: "",
         entityId = prefs.getString("gate${which}Entity", "") ?: "",

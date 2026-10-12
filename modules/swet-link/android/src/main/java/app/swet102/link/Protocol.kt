@@ -1,5 +1,7 @@
 package app.swet102.link
 
+import java.util.Calendar
+import java.util.TimeZone
 import java.util.UUID
 
 /**
@@ -26,6 +28,34 @@ object Protocol {
 
     /** Written to the control characteristic: the display reboots into DFU. */
     val CONTROL_DFU = "DFU!".toByteArray(Charsets.US_ASCII)
+
+    /** Tag of the time-sync write to the control characteristic ('T'). */
+    const val CONTROL_TIME: Byte = 0x54
+
+    /**
+     * Time sync for the display's Lights AUTO mode (it has no clock), 9 bytes,
+     * little-endian: `'T'`, u32 seconds since local midnight, u16 today's
+     * sunset and u16 today's sunrise in minutes since local midnight.
+     */
+    fun timeSync(secsOfDay: Int, sunsetMin: Int, sunriseMin: Int): ByteArray {
+        val b = ByteArray(9)
+        b[0] = CONTROL_TIME
+        for (i in 0 until 4) b[1 + i] = (secsOfDay ushr (8 * i)).toByte()
+        for (i in 0 until 2) b[5 + i] = (sunsetMin ushr (8 * i)).toByte()
+        for (i in 0 until 2) b[7 + i] = (sunriseMin ushr (8 * i)).toByte()
+        return b
+    }
+
+    /**
+     * The time sync for [nowMs]: wall-clock time in [zone] (DST included) and
+     * today's sun times at [lat]/[lon].
+     */
+    fun timeSync(nowMs: Long, zone: TimeZone, lat: Double, lon: Double): ByteArray {
+        val c = Calendar.getInstance(zone).apply { timeInMillis = nowMs }
+        val secs = c.get(Calendar.HOUR_OF_DAY) * 3600 + c.get(Calendar.MINUTE) * 60 + c.get(Calendar.SECOND)
+        val sun = Sun.today(nowMs, zone, lat, lon)
+        return timeSync(secs, sun.sunsetMin, sun.sunriseMin)
+    }
 
     enum class Command(val code: Int) {
         VOLUME_UP(0x01),
