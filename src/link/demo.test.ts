@@ -1,3 +1,4 @@
+import { PAS_MAX } from "../protocol";
 import { demoLogBetween, demoTelemetry } from "./demo";
 
 describe("demo telemetry", () => {
@@ -8,7 +9,7 @@ describe("demo telemetry", () => {
       expect(t.speedKmh).toBeGreaterThanOrEqual(0);
       expect(t.powerW).toBeLessThanOrEqual(750);
       expect(t.pas).toBeGreaterThanOrEqual(1);
-      expect(t.pas).toBeLessThanOrEqual(5);
+      expect(t.pas).toBeLessThanOrEqual(PAS_MAX);
       expect(t.batteryPct).toBeGreaterThanOrEqual(5);
       expect(t.batteryPct).toBeLessThanOrEqual(82);
     }

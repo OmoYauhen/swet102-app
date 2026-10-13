@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.view.WindowManager
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -35,7 +36,18 @@ class SwetLinkModule : Module() {
         }
         OnStopObserving { Bus.listener = null }
 
-        Function("getSnapshot") { Bus.snapshot() }
+        // The ride screen is a dashboard: keep the phone's screen on while the
+        // app is in front. The flag only applies while the activity is visible.
+        OnActivityEntersForeground {
+            appContext.currentActivity?.let { a ->
+                a.runOnUiThread { a.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+            }
+        }
+
+        Function("getSnapshot") {
+            Bus.restore(context)
+            Bus.snapshot()
+        }
 
         Function("getSettings") {
             val s = Settings(context)

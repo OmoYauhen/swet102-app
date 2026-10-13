@@ -8,7 +8,10 @@ export interface LinkView {
   /** Fake telemetry from ./demo, not the display. */
   demo?: boolean;
   state: LinkState;
+  /** The last telemetry seen; kept after a disconnect (see telemetryAt). */
   telemetry: Telemetry | null;
+  /** ms since epoch when telemetry arrived; null if never. */
+  telemetryAt: number | null;
   trips: Partial<Record<TripId, Trip>>;
   log: LogEntry[];
 }
@@ -31,7 +34,7 @@ const DEMO = process.env.EXPO_PUBLIC_DEMO === "1";
 function useNativeLink(): LinkView {
   const [view, setView] = useState<LinkView>(() => {
     if (!SwetLink) {
-      return { available: false, state: "off", telemetry: null, trips: {}, log: [] };
+      return { available: false, state: "off", telemetry: null, telemetryAt: null, trips: {}, log: [] };
     }
     const s = SwetLink.getSnapshot();
     const trips: Partial<Record<TripId, Trip>> = {};
@@ -43,6 +46,7 @@ function useNativeLink(): LinkView {
       available: true,
       state: s.state,
       telemetry: s.telemetry ? safe(() => parseTelemetry(fromHex(s.telemetry!))) : null,
+      telemetryAt: s.telemetryAt || null,
       trips,
       log: s.log,
     };
@@ -51,12 +55,11 @@ function useNativeLink(): LinkView {
   useEffect(() => {
     if (!SwetLink) return;
     const subs = [
-      SwetLink.addListener("onState", ({ state }) =>
-        setView((v) => ({ ...v, state, telemetry: state === "connected" ? v.telemetry : null })),
-      ),
-      SwetLink.addListener("onTelemetry", ({ hex }) => {
+      // A disconnect keeps the last values; the Ride screen marks them as old.
+      SwetLink.addListener("onState", ({ state }) => setView((v) => ({ ...v, state }))),
+      SwetLink.addListener("onTelemetry", ({ hex, at }) => {
         const t = safe(() => parseTelemetry(fromHex(hex)));
-        if (t) setView((v) => ({ ...v, telemetry: t }));
+        if (t) setView((v) => ({ ...v, telemetry: t, telemetryAt: at }));
       }),
       SwetLink.addListener("onTrip", ({ hex }) => {
         const t = safe(() => parseTrip(fromHex(hex)));
@@ -78,7 +81,15 @@ export const useLink: () => LinkView = DEMO ? useDemoLink : useNativeLink;
 function demoView(s: number, log: LogEntry[]): LinkView {
   const trips: Partial<Record<TripId, Trip>> = {};
   for (const t of demoTrips(s)) trips[t.id] = t;
-  return { available: true, demo: true, state: "connected", telemetry: demoTelemetry(s), trips, log };
+  return {
+    available: true,
+    demo: true,
+    state: "connected",
+    telemetry: demoTelemetry(s),
+    telemetryAt: Date.now(),
+    trips,
+    log,
+  };
 }
 
 function useDemoLink(): LinkView {

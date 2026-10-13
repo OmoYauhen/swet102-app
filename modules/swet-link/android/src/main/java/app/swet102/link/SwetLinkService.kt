@@ -81,6 +81,7 @@ class SwetLinkService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        Bus.restore(this)
         settings = Settings(this)
         actions = Actions(this)
         createChannel()

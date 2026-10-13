@@ -19,8 +19,10 @@ export interface LogEntry {
 
 export interface Snapshot {
   state: LinkState;
-  /** Latest raw telemetry value, hex. */
+  /** Latest raw telemetry value, hex; kept (and saved) across disconnects. */
   telemetry: string | null;
+  /** ms since epoch when that telemetry arrived, 0 if none. */
+  telemetryAt: number;
   /** Latest raw trip records, hex. */
   trips: string[];
   log: LogEntry[];
@@ -39,7 +41,7 @@ export interface LinkSettings {
 
 type Events = {
   onState(e: { state: LinkState }): void;
-  onTelemetry(e: { hex: string }): void;
+  onTelemetry(e: { hex: string; at: number }): void;
   onTrip(e: { hex: string }): void;
   onLog(e: LogEntry): void;
 };
