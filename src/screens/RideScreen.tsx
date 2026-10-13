@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { LinkView } from "../link/use-link";
-import { Trip, TripId } from "../protocol";
+import { lastSeen, stale } from "../link/stale";
+import { PAS_MAX, Trip, TripId } from "../protocol";
 import { batteryColor, BikeStage, Callout, Telltale } from "./dash";
 import { colors, StatusBadge } from "./ui";
 
@@ -12,7 +13,8 @@ const TRIP_LABELS: [TripId, string][] = [
 
 /** What the display shows, as a dashboard around the bike, plus trips and the phone's log. */
 export function RideScreen({ link }: { link: LinkView }) {
-  const t = link.telemetry;
+  const live = link.state === "connected";
+  const t = live ? link.telemetry : stale(link.telemetry);
   const odo = link.trips.odometer;
   const odoKm = t?.odoKm ?? odo?.km;
 
@@ -30,7 +32,7 @@ export function RideScreen({ link }: { link: LinkView }) {
       label: "ASSIST",
       value: !t ? "--" : t.walk ? "WALK" : `${t.pas}`,
       unit: t && !t.walk ? "PAS" : undefined,
-      level: t && !t.walk ? t.pas / 5 : undefined,
+      level: t && !t.walk ? t.pas / PAS_MAX : undefined,
     },
     {
       corner: "bl",
@@ -72,10 +74,11 @@ export function RideScreen({ link }: { link: LinkView }) {
 
       <BikeStage t={t} callouts={callouts} />
 
-      {!t && (
-        <Text style={styles.muted}>
-          {link.state === "connected" ? "Waiting for telemetry…" : "Not connected to the display"}
-        </Text>
+      {!t ? (
+        <Text style={styles.muted}>{live ? "Waiting for telemetry…" : "Not connected to the display"}</Text>
+      ) : (
+        !live &&
+        link.telemetryAt && <Text style={styles.muted}>Not connected · last seen {lastSeen(link.telemetryAt)}</Text>
       )}
 
       <View style={styles.trips}>

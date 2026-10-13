@@ -5,7 +5,7 @@
  * link drop, sport mode every other loop, and a draining battery.
  */
 
-import { Telemetry, Trip } from "../protocol";
+import { PAS_MAX, Telemetry, Trip } from "../protocol";
 
 const LOOP_S = 90;
 const AVG_KMH = 20;
@@ -23,11 +23,11 @@ export function demoTelemetry(s: number): Telemetry {
   const speedLimit = sport ? 45 : 25;
   const speedKmh = Math.round(speedAt(s) * 10) / 10;
   const walk = p >= 83 && p < 88;
-  const pas = 1 + (Math.floor(s / 15) % 5);
+  const pas = 1 + (Math.floor(s / 15) % PAS_MAX);
   const linkLost = p >= 60 && p < 63;
   const climbing = Math.max(0, speedAt(s + 0.5) - speedAt(s));
   const assisting = !linkLost && speedKmh > 0.5 && speedKmh < speedLimit;
-  const powerW = walk ? 60 : assisting ? Math.round(Math.min(750, pas * 80 + climbing * 160)) : 0;
+  const powerW = walk ? 60 : assisting ? Math.round(Math.min(750, pas * 45 + climbing * 160)) : 0;
   return {
     speedKmh,
     powerW,

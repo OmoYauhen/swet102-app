@@ -6,6 +6,8 @@
 
 export const TELEMETRY_VERSION = 2;
 export const TRIPS_VERSION = 1;
+/** Highest assist level the display sends (swet102 config.rs PAS_MAX). */
+export const PAS_MAX = 9;
 
 export interface Telemetry {
   speedKmh: number;
