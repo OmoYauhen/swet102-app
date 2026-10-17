@@ -27,6 +27,20 @@ class Settings(context: Context) {
         get() = prefs.getString("haToken", "") ?: ""
         set(v) = prefs.edit().putString("haToken", v).apply()
 
+    /**
+     * The display's build (DIS Software Revision, YYMMDDHH) as read on the last
+     * connect; null if its firmware doesn't publish one. Kept so the OTA tab
+     * knows it while the display sits in its bootloader.
+     */
+    var displayBuild: String?
+        get() = prefs.getString("displayBuild", null)
+        set(v) = prefs.edit().putString("displayBuild", v).apply()
+
+    /** The display's firmware version (DIS Firmware Revision, semver), as last read. */
+    var displayVersion: String?
+        get() = prefs.getString("displayVersion", null)
+        set(v) = prefs.edit().putString("displayVersion", v).apply()
+
     /** Last known phone location (lat, lon), for sunrise/sunset; null if never known. */
     var location: Pair<Double, Double>?
         get() = if (prefs.contains("lat") && prefs.contains("lon")) {

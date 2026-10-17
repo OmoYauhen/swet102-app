@@ -23,11 +23,27 @@ object Protocol {
     val TRIPS: UUID = uuid(0x0005)
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
+    private fun sig(short: Int): UUID =
+        UUID.fromString(String.format("0000%04x-0000-1000-8000-00805f9b34fb", short))
+
+    /** Device Information service. */
+    val DIS: UUID = sig(0x180A)
+    /** Firmware Revision String: the semver, e.g. "0.1.0". */
+    val DIS_FIRMWARE_REV: UUID = sig(0x2A26)
+    /**
+     * Software Revision String: the build, VERSION_NUM (YYMMDDHH, UTC) as text,
+     * e.g. "26101610", or "-" for a build not made by `make`. Firmware before
+     * the OTA tab has no such characteristic.
+     */
+    val DIS_SOFTWARE_REV: UUID = sig(0x2A28)
+    /** Nordic Secure DFU service: what the display's bootloader (SW102_DFU) offers. */
+    val SECURE_DFU: UUID = sig(0xFE59)
+
+    /** The bootloader's advertised name while it waits for an update. */
+    const val DFU_NAME = "SW102_DFU"
+
     /** Characteristics we subscribe to, in the order the CCCDs are written. */
     val NOTIFY = listOf(COMMAND, TELEMETRY, TRIPS)
-
-    /** Written to the control characteristic: the display reboots into DFU. */
-    val CONTROL_DFU = "DFU!".toByteArray(Charsets.US_ASCII)
 
     /** Tag of the time-sync write to the control characteristic ('T'). */
     const val CONTROL_TIME: Byte = 0x54

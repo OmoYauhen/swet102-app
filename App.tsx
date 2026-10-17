@@ -4,10 +4,13 @@ import { StatusBar } from "expo-status-bar";
 import { SwetLink } from "./modules/swet-link";
 import { useLink } from "./src/link/use-link";
 import { RideScreen } from "./src/screens/RideScreen";
+import { OtaScreen } from "./src/screens/OtaScreen";
 import { SetupScreen } from "./src/screens/SetupScreen";
 import { colors } from "./src/screens/ui";
 
-type Tab = "ride" | "setup";
+type Tab = "ride" | "setup" | "ota";
+
+const TABS: Record<Tab, string> = { ride: "Ride", setup: "Setup", ota: "OTA" };
 
 export default function App() {
   const link = useLink();
@@ -20,23 +23,25 @@ export default function App() {
         <Text style={styles.title}>
           swet102{link.demo && <Text style={styles.demo}>  DEMO</Text>}
         </Text>
-        {(["ride", "setup"] as Tab[]).map((t) => (
+        {(Object.keys(TABS) as Tab[]).map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabOn]}>
             <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>
-              {t === "ride" ? "Ride" : "Setup"}
+              {TABS[t]}
             </Text>
           </Pressable>
         ))}
       </View>
-      {!link.available || (tab === "setup" && !SwetLink) ? (
+      {!link.available || (tab === "setup" && !SwetLink) || (tab === "ota" && (!SwetLink || link.demo)) ? (
         <Text style={styles.unavailable}>
           The display link needs the Android build (npx expo run:android); it isn't
           available on web, iOS or in Expo Go.
         </Text>
       ) : tab === "ride" ? (
         <RideScreen link={link} />
-      ) : (
+      ) : tab === "setup" ? (
         <SetupScreen link={link} />
+      ) : (
+        <OtaScreen link={link} />
       )}
     </View>
   );

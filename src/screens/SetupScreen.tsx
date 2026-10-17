@@ -5,10 +5,7 @@ import { LinkView } from "../link/use-link";
 import { requestLinkPermissions, requestLocationPermission } from "../link/permissions";
 import { Button, colors, StatusBadge } from "./ui";
 
-/**
- * First-run pairing, the link switch, Home Assistant for the gates, and the
- * display's DFU reboot.
- */
+/** First-run pairing, the link switch and Home Assistant for the gates. */
 export function SetupScreen({ link }: { link: LinkView }) {
   const native = SwetLink!;
   const [s, setS] = useState<LinkSettings>(() => native.getSettings());
@@ -75,22 +72,6 @@ export function SetupScreen({ link }: { link: LinkView }) {
     Alert.alert(`Gate ${which}`, error ?? "Done");
   }
 
-  function dfu() {
-    Alert.alert(
-      "Reboot the display to DFU?",
-      "Assist stops until it's back. The wheel must have been still for 5 s.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reboot",
-          onPress: () => {
-            if (!native.rebootToDfu()) Alert.alert("Not connected to the display");
-          },
-        },
-      ],
-    );
-  }
-
   const field = (key: keyof LinkSettings, placeholder: string, secure = false) => (
     <TextInput
       style={styles.input}
@@ -117,7 +98,6 @@ export function SetupScreen({ link }: { link: LinkView }) {
             </View>
             <View style={styles.buttons}>
               <Button kind="plain" title="Forget" onPress={forget} />
-              <Button kind="plain" title="Reboot display to DFU" onPress={dfu} />
             </View>
           </>
         ) : (

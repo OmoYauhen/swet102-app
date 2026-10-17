@@ -22,6 +22,7 @@
   "dependencies": {
     "expo": "~57.0.12",
     "expo-dev-client": "~57.0.11",
+    "expo-document-picker": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

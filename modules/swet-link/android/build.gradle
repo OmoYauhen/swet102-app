@@ -18,6 +18,8 @@ android {
 }
 
 dependencies {
+  // Nordic Secure DFU for the display's SDK 12 bootloader (OTA tab)
+  implementation 'no.nordicsemi.android:dfu:2.10.1'
   testImplementation 'junit:junit:4.13.2'
   // android.jar's org.json is a stub on the JVM
   testImplementation 'org.json:json:20240303'
