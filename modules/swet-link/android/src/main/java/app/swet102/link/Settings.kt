@@ -4,7 +4,7 @@ import android.content.Context
 
 /**
  * Everything the service needs to run without the UI: the display's address,
- * whether the link is on, and the Home Assistant gate setup. Private app
+ * whether the link is on, and the Home Assistant gate and battery setup. Private app
  * storage; the token never leaves the phone except in the HA request.
  */
 class Settings(context: Context) {
@@ -26,6 +26,21 @@ class Settings(context: Context) {
     var haToken: String
         get() = prefs.getString("haToken", "") ?: ""
         set(v) = prefs.edit().putString("haToken", v).apply()
+
+    /** Push the battery to Home Assistant (needs [haUrl] and [haToken] too). */
+    var haBattery: Boolean
+        get() = prefs.getBoolean("haBattery", true)
+        set(v) = prefs.edit().putBoolean("haBattery", v).apply()
+
+    /** input_number helper for the state of charge, 0–100 %. */
+    var haSocEntity: String
+        get() = prefs.getString("haSocEntity", null) ?: "input_number.e_bike_battery_soc_raw"
+        set(v) = prefs.edit().putString("haSocEntity", v).apply()
+
+    /** input_number helper for the pack voltage, 0–60 V. */
+    var haVoltageEntity: String
+        get() = prefs.getString("haVoltageEntity", null) ?: "input_number.e_bike_battery_voltage_raw"
+        set(v) = prefs.edit().putString("haVoltageEntity", v).apply()
 
     /**
      * The display's build (DIS Software Revision, YYMMDDHH) as read on the last

@@ -5,7 +5,7 @@ import { LinkView } from "../link/use-link";
 import { requestLinkPermissions, requestLocationPermission } from "../link/permissions";
 import { Button, colors, StatusBadge } from "./ui";
 
-/** First-run pairing, the link switch and Home Assistant for the gates. */
+/** First-run pairing, the link switch and Home Assistant for the gates and the battery. */
 export function SetupScreen({ link }: { link: LinkView }) {
   const native = SwetLink!;
   const [s, setS] = useState<LinkSettings>(() => native.getSettings());
@@ -61,6 +61,11 @@ export function SetupScreen({ link }: { link: LinkView }) {
 
   function saveHa() {
     native.saveHomeAssistant(s.haUrl, s.haToken, s.gateAService, s.gateAEntity, s.gateBService, s.gateBEntity);
+    reload();
+  }
+
+  function saveBattery(on = s.haBattery) {
+    native.saveBatteryReport(on, s.haSocEntity, s.haVoltageEntity);
     reload();
   }
 
@@ -132,6 +137,24 @@ export function SetupScreen({ link }: { link: LinkView }) {
           Each gate calls a Home Assistant service on an entity, e.g. button.press /
           switch.turn_on / cover.open_cover / script.turn_on. The phone buzzes once when
           it worked, three times when it didn't.
+        </Text>
+      </Section>
+
+      <Section title="Battery (Home Assistant)">
+        <View style={styles.row}>
+          <Text style={styles.text}>Report battery to Home Assistant</Text>
+          <Switch value={s.haBattery} onValueChange={(on) => saveBattery(on)} />
+        </View>
+        <Text style={styles.label}>State of charge (%)</Text>
+        {field("haSocEntity", "input_number.e_bike_battery_soc_raw")}
+        <Text style={styles.label}>Pack voltage (V)</Text>
+        {field("haVoltageEntity", "input_number.e_bike_battery_voltage_raw")}
+        <View style={styles.buttons}>
+          <Button title="Save" onPress={() => saveBattery()} />
+        </View>
+        <Text style={styles.hint}>
+          Uses the URL and token above. While connected, sets the input_number helpers
+          right away and then at most once a minute when a value changes.
         </Text>
       </Section>
 

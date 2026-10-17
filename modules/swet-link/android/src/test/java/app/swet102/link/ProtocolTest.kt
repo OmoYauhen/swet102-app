@@ -91,4 +91,31 @@ class ProtocolTest {
     private fun u32(v: Int) = bytes(v and 0xFF, (v shr 8) and 0xFF, (v shr 16) and 0xFF, (v shr 24) and 0xFF)
 
     private fun u16(b: ByteArray, at: Int) = (b[at].toInt() and 0xFF) or ((b[at + 1].toInt() and 0xFF) shl 8)
+
+    private fun telemetry(version: Int, soc: Int, centivolts: Int = 0): ByteArray {
+        val b = ByteArray(if (version >= 3) 16 else 14)
+        b[0] = version.toByte()
+        b[5] = soc.toByte()
+        if (version >= 3) {
+            b[14] = centivolts.toByte()
+            b[15] = (centivolts shr 8).toByte()
+        }
+        return b
+    }
+
+    @Test
+    fun parsesBatteryFromTelemetry() {
+        assertEquals(Protocol.Battery(72, 52.3), Protocol.parseBattery(telemetry(3, 72, 5234)))
+        assertEquals(Protocol.Battery(72, 52.4), Protocol.parseBattery(telemetry(3, 72, 5236)))
+        // no reading yet / not measured / v2 without the voltage
+        assertEquals(Protocol.Battery(null, null), Protocol.parseBattery(telemetry(3, 0xff, 0)))
+        assertEquals(Protocol.Battery(40, null), Protocol.parseBattery(telemetry(2, 40)))
+    }
+
+    @Test
+    fun rejectsUnknownTelemetry() {
+        assertNull(Protocol.parseBattery(ByteArray(0)))
+        assertNull(Protocol.parseBattery(telemetry(3, 50).copyOf(14)))
+        assertNull(Protocol.parseBattery(telemetry(3, 50).also { it[0] = 4 }))
+    }
 }
