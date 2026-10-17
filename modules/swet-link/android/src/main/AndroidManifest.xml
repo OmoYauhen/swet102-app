@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- BLE: scan only to find the display once; never used for location -->
+    <!-- BLE: scan only to find the display (once) and its bootloader (OTA); never used for location -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -22,6 +22,12 @@
     <application>
         <service
             android:name="app.swet102.link.SwetLinkService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Nordic Secure DFU (firmware update from the OTA tab), in front while it runs -->
+        <service
+            android:name="app.swet102.link.DfuService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 

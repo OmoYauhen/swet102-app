@@ -33,15 +33,19 @@ import java.util.concurrent.Executors
  * - Foreground service (connectedDevice), restarted at boot when enabled.
  * - `connectGatt(address, autoConnect = true)`: the Bluetooth stack connects in
  *   the background whenever the display shows up; no scanning after first setup.
- * - On every connect, subscribe to command, telemetry and trips again (no
- *   bonding, so the display keeps no subscriptions).
+ * - On every connect, read the firmware build and version from Device
+ *   Information (saved for the OTA tab), then subscribe to command, telemetry
+ *   and trips again (no bonding, so the display keeps no subscriptions).
+ * - While a firmware update runs ([pauseForDfu]) the link lets go of the
+ *   display: the bootloader takes a single connection, and autoConnect would
+ *   grab it.
  * - Commands: volume and media keys locally, gates through Home Assistant.
  * - Time sync: the display has no clock, so once the link is up and then
  *   every [TIME_SYNC_MS] we write the local time and today's sunset/sunrise
  *   to the control characteristic (for its Lights AUTO mode).
  *
  * All GATT work runs on one handler thread; Android allows one GATT operation
- * at a time, so CCCD writes are chained through their callbacks.
+ * at a time, so the DIS reads and CCCD writes are chained through their callbacks.
  */
 @SuppressLint("MissingPermission") // the UI starts us only once BLUETOOTH_CONNECT is granted
 class SwetLinkService : Service() {
@@ -50,9 +54,26 @@ class SwetLinkService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val RECONNECT_DELAY_MS = 1000L
         private const val TIME_SYNC_MS = 10 * 60 * 1000L
+        /** How long to leave the display alone when we find its bootloader instead. */
+        private const val BOOTLOADER_BACKOFF_MS = 30_000L
 
         @Volatile var instance: SwetLinkService? = null
             private set
+
+        /** A firmware update owns the display; don't connect. In memory only. */
+        @Volatile var paused = false
+            private set
+
+        /** Close the GATT and stay off the display until [resumeAfterDfu]. */
+        fun pauseForDfu() {
+            paused = true
+            instance?.let { s -> s.handler.post { s.release("paused", "Paused for a firmware update") } }
+        }
+
+        fun resumeAfterDfu() {
+            paused = false
+            instance?.let { s -> s.handler.post { s.connect() } }
+        }
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, SwetLinkService::class.java))
@@ -71,6 +92,9 @@ class SwetLinkService : Service() {
     private val dedup = Protocol.Dedup()
 
     private var gatt: BluetoothGatt? = null
+    private var pendingReads = ArrayDeque<BluetoothGattCharacteristic>()
+    /** DIS values of this connection; null for "absent", missing key for "read failed". */
+    private var displayInfo: HashMap<java.util.UUID, String?>? = null
     private var pendingCccds = ArrayDeque<BluetoothGattDescriptor>()
     private var stopping = false
     /** Services discovered and subscriptions done. */
@@ -120,6 +144,7 @@ class SwetLinkService : Service() {
 
     private fun connect() {
         if (stopping || gatt != null) return
+        if (paused) return setState("paused", "Paused for a firmware update")
         val address = settings.address
         val adapter = adapter()
         when {
@@ -137,6 +162,15 @@ class SwetLinkService : Service() {
         gatt?.close()
         gatt = null
         if (!stopping) handler.postDelayed({ connect() }, RECONNECT_DELAY_MS)
+    }
+
+    /** Let go of the display now; nothing re-arms the connection by itself. */
+    private fun release(state: String, text: String) {
+        linkDown()
+        gatt?.disconnect()
+        gatt?.close()
+        gatt = null
+        setState(state, text)
     }
 
     private val adapterState = object : BroadcastReceiver() {
@@ -172,11 +206,30 @@ class SwetLinkService : Service() {
             handler.post {
                 if (g != gatt) return@post
                 val service = g.getService(Protocol.SERVICE)
+                if (status == BluetoothGatt.GATT_SUCCESS && service == null && g.getService(Protocol.SECURE_DFU) != null) {
+                    // The display is in its bootloader (SW102_DFU) and kept the app's
+                    // address. It takes one connection and stops advertising while
+                    // connected, so holding it would hide it from the OTA tab: back off.
+                    release("waiting", "The display is in its bootloader")
+                    handler.postDelayed({ connect() }, BOOTLOADER_BACKOFF_MS)
+                    return@post
+                }
                 if (status != BluetoothGatt.GATT_SUCCESS || service == null) {
                     // Not a Swet102 display (or a stale cache): start over.
                     g.disconnect()
                     return@post
                 }
+                // Firmware build/version first (missing characteristic: skipped),
+                // then the subscriptions; one GATT operation at a time.
+                val dis = g.getService(Protocol.DIS)
+                val reads = listOf(Protocol.DIS_SOFTWARE_REV, Protocol.DIS_FIRMWARE_REV)
+                displayInfo = dis?.let { d ->
+                    // absent on older firmware: that firmware has no build to report
+                    HashMap<java.util.UUID, String?>().apply {
+                        reads.forEach { if (d.getCharacteristic(it) == null) put(it, null) }
+                    }
+                }
+                pendingReads = ArrayDeque(reads.mapNotNull { dis?.getCharacteristic(it) })
                 pendingCccds = ArrayDeque(
                     Protocol.NOTIFY.mapNotNull { uuid ->
                         service.getCharacteristic(uuid)?.let { c ->
@@ -185,8 +238,22 @@ class SwetLinkService : Service() {
                         }
                     },
                 )
-                writeNextCccd(g)
+                nextSetupStep(g)
             }
+        }
+
+        // API 33+
+        override fun onCharacteristicRead(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+            val copy = value.copyOf()
+            handler.post { onRead(g, c.uuid, copy, status) }
+        }
+
+        // API < 33
+        @Deprecated("Deprecated in Java")
+        override fun onCharacteristicRead(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) {
+            @Suppress("DEPRECATION")
+            val copy = c.value?.copyOf() ?: ByteArray(0)
+            handler.post { onRead(g, c.uuid, copy, status) }
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
@@ -206,6 +273,28 @@ class SwetLinkService : Service() {
             val copy = c.value?.copyOf() ?: return
             handler.post { onValue(c.uuid, copy) }
         }
+    }
+
+    private fun onRead(g: BluetoothGatt, uuid: java.util.UUID, value: ByteArray, status: Int) {
+        if (g != gatt) return
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            displayInfo?.put(uuid, String(value, Charsets.UTF_8).trim { it <= ' ' || it == '\u0000' })
+        }
+        nextSetupStep(g)
+    }
+
+    /** Next DIS read, or (when they're done) save what we learnt and subscribe. */
+    private fun nextSetupStep(g: BluetoothGatt) {
+        while (true) {
+            val c = pendingReads.removeFirstOrNull() ?: break
+            if (g.readCharacteristic(c)) return // continues in onCharacteristicRead
+        }
+        displayInfo?.let { info ->
+            if (info.containsKey(Protocol.DIS_SOFTWARE_REV)) settings.displayBuild = info[Protocol.DIS_SOFTWARE_REV]
+            if (info.containsKey(Protocol.DIS_FIRMWARE_REV)) settings.displayVersion = info[Protocol.DIS_FIRMWARE_REV]
+        }
+        displayInfo = null
+        writeNextCccd(g)
     }
 
     private fun writeNextCccd(g: BluetoothGatt) {
@@ -277,12 +366,6 @@ class SwetLinkService : Service() {
         }
     }
 
-    /** Ask the display to reboot into its bootloader (it refuses while moving). */
-    fun rebootToDfu(): Boolean {
-        val g = gatt ?: return false
-        return writeControl(g, Protocol.CONTROL_DFU)
-    }
-
     // ---- time sync ----
 
     private val timeSync = Runnable { syncTime() }
@@ -306,7 +389,7 @@ class SwetLinkService : Service() {
         handler.removeCallbacks(timeSync)
     }
 
-    /** One write to the control characteristic, with response (as for DFU). */
+    /** One write to the control characteristic, with response. */
     private fun writeControl(g: BluetoothGatt, value: ByteArray): Boolean {
         val c = g.getService(Protocol.SERVICE)?.getCharacteristic(Protocol.CONTROL) ?: return false
         return if (Build.VERSION.SDK_INT >= 33) {

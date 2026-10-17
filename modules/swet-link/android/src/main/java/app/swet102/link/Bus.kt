@@ -76,6 +76,11 @@ object Bus {
         listener?.onEvent("onTrip", mapOf("hex" to hex))
     }
 
+    /** Any other event for JS (e.g. "onDfu"), only while it listens. */
+    fun emit(name: String, body: Map<String, Any?>) {
+        listener?.onEvent(name, body)
+    }
+
     /** Commands and gate results, newest last, for the UI's activity list. */
     fun log(kind: String, text: String, ok: Boolean) {
         val entry = mapOf("at" to System.currentTimeMillis().toDouble(), "kind" to kind, "text" to text, "ok" to ok)
