@@ -14,9 +14,9 @@ handlebar becomes a notification over BLE; this app turns it into:
 | Player: RIGHT double-click | play / pause |
 | Gate: LEFT / RIGHT | a Home Assistant service call for gate A / gate B |
 
-It also shows the display's telemetry (speed, power, battery, PAS, city/sport,
-lights, motor errors) and trips (ride, trip, battery trip, odometer with
-max/avg/Ah), and updates the display's firmware over Bluetooth (**OTA** tab).
+It also shows the display's telemetry (speed, power, battery % and pack
+voltage, PAS, city/sport, lights, motor errors) and trips (ride, trip, battery
+trip, odometer with max/avg/Ah), and updates the display's firmware over Bluetooth (**OTA** tab).
 
 The display has no clock, so the app also sends it the **time of day and
 today's sunset and sunrise**. The display's Lights **AUTO** mode uses them to
@@ -34,7 +34,8 @@ emulator (see [Emulator and demo mode](#emulator-and-demo-mode)).
 The Ride screen is laid out like a car dashboard around a drawing of the bike.
 A speed gauge marks the assist limit and turns amber above it. Four readings
 point to the parts of the bike they come from: odometer to the rear wheel,
-assist to the handlebar display, battery to the pack, and power to the motor.
+assist to the handlebar display, battery to the pack (charge, with the pack
+voltage beside it when the display measures it), and power to the motor.
 The battery pack is coloured by charge, the motor glows with power, and the
 headlamp throws a beam when the lights are on. Status lights for city/sport,
 lights and motor link sit above it.
@@ -79,7 +80,8 @@ state and edits settings.
 Protocol: swet102 `docs/TECH_DESIGN.md` §9.4. GATT base UUID
 `8f03xxxx-da4c-453d-a163-41a592a0e9fd`, service `0001`, telemetry `0002`, command
 `0003`, control `0004`, trips `0005`. Decoders: `src/protocol` (TypeScript) and
-`Protocol.kt` (commands).
+`Protocol.kt` (commands). Telemetry is v3 (16 bytes, adds the pack voltage);
+v2 (14 bytes) from older display builds is still read, without the voltage.
 
 ## Setup
 

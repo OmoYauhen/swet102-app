@@ -40,6 +40,7 @@ export function RideScreen({ link }: { link: LinkView }) {
       label: "BATTERY",
       value: t?.batteryPct == null ? "--" : `${t.batteryPct}`,
       unit: "%",
+      sub: t?.packV == null ? undefined : `${t.packV.toFixed(1)} V`,
       color: batteryColor(t?.batteryPct ?? null),
       level: t?.batteryPct == null ? undefined : t.batteryPct / 100,
     },

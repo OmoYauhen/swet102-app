@@ -12,6 +12,19 @@ describe("demo telemetry", () => {
       expect(t.pas).toBeLessThanOrEqual(PAS_MAX);
       expect(t.batteryPct).toBeGreaterThanOrEqual(5);
       expect(t.batteryPct).toBeLessThanOrEqual(82);
+      // 14S Li-ion, between empty (42 V) and full (58.8 V)
+      expect(t.packV).toBeGreaterThan(40);
+      expect(t.packV).toBeLessThanOrEqual(58.8);
+    }
+  });
+
+  it("sags the pack voltage under power", () => {
+    const pulling = loop.filter((t) => t.powerW > 300);
+    expect(pulling.length).toBeGreaterThan(0);
+    for (const t of pulling) {
+      const rest = 42 + (16.8 * t.batteryPct!) / 100;
+      expect(t.packV!).toBeLessThan(rest);
+      expect(t.packV!).toBeGreaterThan(rest - 2);
     }
   });
 

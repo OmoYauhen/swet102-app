@@ -13,10 +13,11 @@ const t: Telemetry = {
   motorLink: true,
   error: "link",
   odoKm: 1234.5,
+  packV: 54.3,
 };
 
 describe("stale telemetry", () => {
-  it("keeps battery, assist, lights and odometer; drops motion", () => {
+  it("keeps battery (and pack voltage), assist, lights and odometer; drops motion", () => {
     expect(stale(t)).toEqual({
       ...t,
       speedKmh: 0,
