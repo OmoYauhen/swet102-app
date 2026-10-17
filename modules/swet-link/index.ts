@@ -14,7 +14,7 @@ export type LinkState =
 export interface LogEntry {
   /** ms since epoch */
   at: number;
-  kind: "command" | "gate";
+  kind: "command" | "gate" | "battery";
   text: string;
   ok: boolean;
 }
@@ -39,6 +39,12 @@ export interface LinkSettings {
   gateAEntity: string;
   gateBService: string;
   gateBEntity: string;
+  /** Push state of charge and pack voltage to Home Assistant (with haUrl + haToken). */
+  haBattery: boolean;
+  /** input_number helper for the state of charge, 0–100 %. */
+  haSocEntity: string;
+  /** input_number helper for the pack voltage, 0–60 V. */
+  haVoltageEntity: string;
   /**
    * The display's build (DIS Software Revision: VERSION_NUM, YYMMDDHH UTC, e.g.
    * "26101610"; "-" for a non-make build) as last read on connect, or as last
@@ -105,6 +111,7 @@ declare class SwetLinkModule extends NativeModule<Events> {
     gateBService: string,
     gateBEntity: string,
   ): void;
+  saveBatteryReport(on: boolean, socEntity: string, voltageEntity: string): void;
   /** Scan for "swet102" and remember its address. Resolves null if not found. */
   pair(timeoutMs: number): Promise<string | null>;
   forget(): void;

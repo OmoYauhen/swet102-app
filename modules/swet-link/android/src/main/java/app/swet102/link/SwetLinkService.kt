@@ -40,6 +40,9 @@ import java.util.concurrent.Executors
  *   display: the bootloader takes a single connection, and autoConnect would
  *   grab it.
  * - Commands: volume and media keys locally, gates through Home Assistant.
+ * - Battery: state of charge and pack voltage from telemetry go to Home
+ *   Assistant's input_number helpers, throttled ([BATTERY_REPORT_MS]), on
+ *   their own HTTP thread so a slow HA never delays a gate.
  * - Time sync: the display has no clock, so once the link is up and then
  *   every [TIME_SYNC_MS] we write the local time and today's sunset/sunrise
  *   to the control characteristic (for its Lights AUTO mode).
@@ -54,6 +57,8 @@ class SwetLinkService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val RECONNECT_DELAY_MS = 1000L
         private const val TIME_SYNC_MS = 10 * 60 * 1000L
+        /** At most one battery value per helper this often (plus one on connect). */
+        private const val BATTERY_REPORT_MS = 60_000L
         /** How long to leave the display alone when we find its bootloader instead. */
         private const val BOOTLOADER_BACKOFF_MS = 30_000L
 
@@ -90,6 +95,11 @@ class SwetLinkService : Service() {
     private val handler = Handler(thread.looper)
     private val http = Executors.newSingleThreadExecutor()
     private val dedup = Protocol.Dedup()
+    private val batteryHttp = Executors.newSingleThreadExecutor()
+    private val socReport = HomeAssistant.Throttle(BATTERY_REPORT_MS, 1.0)
+    private val voltageReport = HomeAssistant.Throttle(BATTERY_REPORT_MS, 0.1)
+    /** Last battery push error (batteryHttp thread), so a dead HA is logged once. */
+    private var batteryError: String? = null
 
     private var gatt: BluetoothGatt? = null
     private var pendingReads = ArrayDeque<BluetoothGattCharacteristic>()
@@ -132,6 +142,7 @@ class SwetLinkService : Service() {
             thread.quitSafely()
         }
         http.shutdown()
+        batteryHttp.shutdown()
         instance = null
         Bus.state("off")
         super.onDestroy()
@@ -302,6 +313,8 @@ class SwetLinkService : Service() {
         if (d == null) {
             setState("connected", "Connected to the display")
             linkUp = true
+            socReport.reset()
+            voltageReport.reset()
             syncTime()
             return
         }
@@ -320,7 +333,10 @@ class SwetLinkService : Service() {
 
     private fun onValue(uuid: java.util.UUID, value: ByteArray) {
         when (uuid) {
-            Protocol.TELEMETRY -> Bus.telemetry(value.toHex())
+            Protocol.TELEMETRY -> {
+                Bus.telemetry(value.toHex())
+                reportBattery(value)
+            }
             Protocol.TRIPS -> if (value.size >= 2) Bus.trip(value[1].toInt() and 0xFF, value.toHex())
             Protocol.COMMAND -> {
                 val p = Protocol.parseCommand(value) ?: return
@@ -363,6 +379,34 @@ class SwetLinkService : Service() {
             actions.buzz(error == null)
             Bus.log("gate", if (error == null) "Gate $which" else "Gate $which: $error", error == null)
             done?.invoke(error)
+        }
+    }
+
+    // ---- battery to Home Assistant ----
+
+    private fun reportBattery(value: ByteArray) {
+        if (!settings.haBattery) return
+        val b = Protocol.parseBattery(value) ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        b.pct?.let { reportValue(socReport, settings.haSocEntity, it, now) }
+        // the helper rejects values outside 0–60 V
+        b.packV?.takeIf { it <= 60.0 }?.let { reportValue(voltageReport, settings.haVoltageEntity, it, now) }
+    }
+
+    /** Fire-and-forget; a failure only logs (once) and lets the next value retry. */
+    private fun reportValue(throttle: HomeAssistant.Throttle, entity: String, value: Number, now: Long) {
+        val (req, _) = HomeAssistant.setValue(settings.haUrl, settings.haToken, entity, value)
+        if (req == null || !throttle.offer(value.toDouble(), now)) return // not set up, or not due
+        batteryHttp.execute {
+            val error = when (val r = HomeAssistant.send(req)) {
+                HomeAssistant.Result.Ok -> null
+                is HomeAssistant.Result.Failed -> r.reason
+            }
+            if (error != null) throttle.failed()
+            if (error != batteryError) {
+                Bus.log("battery", if (error == null) "Battery to HA works again" else "Battery to HA: $error", error == null)
+                batteryError = error
+            }
         }
     }
 

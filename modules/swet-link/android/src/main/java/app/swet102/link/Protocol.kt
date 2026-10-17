@@ -8,7 +8,8 @@ import java.util.UUID
  * The Swet102 display's GATT protocol (swet102 docs/TECH_DESIGN.md §9.4).
  *
  * Telemetry and trips are decoded in TypeScript (src/protocol); the service only
- * needs to understand commands, because it acts on them with the screen off.
+ * needs to understand commands and the battery fields of telemetry, because it
+ * acts on them with the screen off.
  */
 object Protocol {
     const val DEVICE_NAME = "swet102"
@@ -71,6 +72,28 @@ object Protocol {
         val secs = c.get(Calendar.HOUR_OF_DAY) * 3600 + c.get(Calendar.MINUTE) * 60 + c.get(Calendar.SECOND)
         val sun = Sun.today(nowMs, zone, lat, lon)
         return timeSync(secs, sun.sunsetMin, sun.sunriseMin)
+    }
+
+    /** Telemetry length in bytes per version: v3 adds the pack voltage. */
+    private val TELEMETRY_LEN = mapOf(2 to 14, 3 to 16)
+
+    /** State of charge in % and pack voltage rounded to 0.1 V; null when unknown. */
+    data class Battery(val pct: Int?, val packV: Double?)
+
+    /**
+     * The battery fields of a telemetry value (soc at byte 5, 0xff = no reading
+     * yet; v3 pack voltage at 14, u16 in 10 mV, 0 = not measured). Null if
+     * it isn't telemetry this app knows.
+     */
+    fun parseBattery(value: ByteArray): Battery? {
+        val version = value.firstOrNull()?.toInt() ?: return null
+        if (value.size != TELEMETRY_LEN[version]) return null
+        val soc = value[5].toInt() and 0xFF
+        val cv = if (version >= 3) (value[14].toInt() and 0xFF) or ((value[15].toInt() and 0xFF) shl 8) else 0
+        return Battery(
+            pct = soc.takeIf { it <= 100 },
+            packV = if (cv == 0) null else Math.round(cv / 10.0) / 10.0,
+        )
     }
 
     enum class Command(val code: Int) {

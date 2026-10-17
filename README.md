@@ -65,6 +65,12 @@ state and edits settings.
   (NOAA sunrise equation, `Sun.kt`) from the phone's last known coarse location,
   which is cached so it keeps working without a fresh fix; Warsaw if the app
   has never had one. A failed write is ignored until the next try.
+- **Battery to Home Assistant**: the state of charge and the pack voltage
+  (telemetry v3, rounded to 0.1 V) go to two `input_number` helpers with
+  `input_number.set_value`: once right after connect, then at most once a
+  minute per helper when the value changed. Fire-and-forget on its own thread
+  (a slow HA never holds up a gate); a failure is logged once and retried with
+  the next value. No buzz.
 - **Feedback** for gates, since you can't look at the phone while riding: **one
   short buzz** means it worked, **three** mean it failed. The Ride tab lists the
   recent commands and gate results.
@@ -100,6 +106,10 @@ v2 (14 bytes) from older display builds is still read, without the voltage.
    `script.turn_on` + `script.open_gate`. The app sends
    `POST <url>/api/services/<domain>/<service>` with `{"entity_id": "<entity>"}`.
    **Test A / Test B** run the same call.
+4. **Battery** (optional, on by default): with the same URL and token the app
+   reports the battery to `input_number.e_bike_battery_soc_raw` (0–100 %) and
+   `input_number.e_bike_battery_voltage_raw` (0–60 V, step 0.1). Both entity
+   ids can be changed in Setup; the switch turns the reporting off.
 
 The URL must be reachable from wherever you ride (Nabu Casa, your own HTTPS
 domain, or a VPN). The token is kept in the app's private storage on the phone.
