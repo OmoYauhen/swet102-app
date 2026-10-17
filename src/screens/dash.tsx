@@ -163,6 +163,8 @@ export interface Callout {
   label: string;
   value: string;
   unit?: string;
+  /** A secondary reading, small, beside the label. */
+  sub?: string;
   color?: string;
   /** 0..1, drawn as a bar under the value. */
   level?: number;
@@ -258,9 +260,16 @@ export function BikeStage({ t, callouts }: { t: Telemetry | null; callouts: Call
             c.corner[1] === "l" ? { left: 0 } : { right: 0 },
           ]}
         >
-          <Text style={styles.tileLabel} numberOfLines={1}>
-            {c.label}
-          </Text>
+          <View style={styles.tileHead}>
+            <Text style={styles.tileLabel} numberOfLines={1}>
+              {c.label}
+            </Text>
+            {c.sub ? (
+              <Text style={styles.tileSub} numberOfLines={1}>
+                {c.sub}
+              </Text>
+            ) : null}
+          </View>
           <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit>
             {c.value}
             {c.unit ? <Text style={styles.tileUnit}> {c.unit}</Text> : null}
@@ -319,7 +328,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     justifyContent: "center",
   },
-  tileLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", letterSpacing: 1.5 },
+  tileHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 6 },
+  tileLabel: { flexShrink: 1, color: colors.muted, fontSize: 10, fontWeight: "700", letterSpacing: 1.5 },
+  tileSub: { color: colors.text, fontSize: 11, fontWeight: "400", fontVariant: ["tabular-nums"] },
   tileValue: { color: colors.text, fontSize: 22, fontWeight: "300", fontVariant: ["tabular-nums"] },
   tileUnit: { color: colors.muted, fontSize: 12, fontWeight: "400" },
   bar: { height: 3, borderRadius: 2, backgroundColor: colors.line, marginTop: 3, overflow: "hidden" },

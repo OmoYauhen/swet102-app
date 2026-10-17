@@ -2,13 +2,19 @@
  * Fake telemetry for running without the display (emulator, web). Enabled at
  * bundle time with EXPO_PUBLIC_DEMO=1. A 90 s loop rides through every state
  * the dashboard has: assist levels, lights, a stop with walk assist, a motor
- * link drop, sport mode every other loop, and a draining battery.
+ * link drop, sport mode every other loop, and a draining battery whose
+ * voltage sags with power.
  */
 
 import { PAS_MAX, Telemetry, Trip } from "../protocol";
 
 const LOOP_S = 90;
 const AVG_KMH = 20;
+/** 14S Li-ion: 3.0 V a cell empty, 4.2 V full. */
+const PACK_EMPTY_V = 42;
+const PACK_FULL_V = 58.8;
+/** Sag at full power (750 W), from the pack's internal resistance. */
+const SAG_V = 1.8;
 
 function speedAt(s: number): number {
   const p = s % LOOP_S;
@@ -28,10 +34,12 @@ export function demoTelemetry(s: number): Telemetry {
   const climbing = Math.max(0, speedAt(s + 0.5) - speedAt(s));
   const assisting = !linkLost && speedKmh > 0.5 && speedKmh < speedLimit;
   const powerW = walk ? 60 : assisting ? Math.round(Math.min(750, pas * 45 + climbing * 160)) : 0;
+  const batteryPct = 82 - (Math.floor(s / 12) % 78);
+  const restV = PACK_EMPTY_V + ((PACK_FULL_V - PACK_EMPTY_V) * batteryPct) / 100;
   return {
     speedKmh,
     powerW,
-    batteryPct: 82 - (Math.floor(s / 12) % 78),
+    batteryPct,
     pas,
     speedLimit,
     sport,
@@ -40,6 +48,7 @@ export function demoTelemetry(s: number): Telemetry {
     motorLink: !linkLost,
     error: linkLost ? "link" : null,
     odoKm: Math.round((1234.5 + (s * AVG_KMH) / 3600) * 10) / 10,
+    packV: Math.round((restV - (SAG_V * powerW) / 750) * 100) / 100,
   };
 }
 

@@ -4,7 +4,10 @@
  * strings; this is the only place that knows the byte layout.
  */
 
-export const TELEMETRY_VERSION = 2;
+/** Telemetry version this app writes against; v2 (no pack voltage) is still read. */
+export const TELEMETRY_VERSION = 3;
+/** Telemetry length in bytes, per version this app understands. */
+const TELEMETRY_LEN: Record<number, number> = { 2: 14, 3: 16 };
 export const TRIPS_VERSION = 1;
 /** Highest assist level the display sends (swet102 config.rs PAS_MAX). */
 export const PAS_MAX = 9;
@@ -24,6 +27,11 @@ export interface Telemetry {
   /** null = no error; "link" = motor link lost; else the STATUS code in hex. */
   error: string | null;
   odoKm: number;
+  /**
+   * Pack voltage from the display's battery sense, in volts (10 mV steps).
+   * null before the first reading, if implausible, or from a v2 display.
+   */
+  packV: number | null;
 }
 
 export type TripId = "trip" | "battery" | "ride" | "odometer";
@@ -60,9 +68,19 @@ function view(bytes: Uint8Array, len: number, version: number, what: string): Da
   return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
-/** 14 bytes: version, speed×10, power W, soc, pas, limit, flags, error, odo (100 m). */
+/**
+ * v3, 16 bytes: version, speed×10, power W, soc, pas, limit, flags, error,
+ * odo (100 m), pack voltage (10 mV, 0 = not measured).
+ * v2, 14 bytes: the same without the pack voltage (older display builds).
+ */
 export function parseTelemetry(bytes: Uint8Array): Telemetry {
-  const v = view(bytes, 14, TELEMETRY_VERSION, "telemetry");
+  const version = bytes[0];
+  const len = TELEMETRY_LEN[version];
+  if (len === undefined) {
+    throw new Error(`telemetry: version ${version}, expected ${Object.keys(TELEMETRY_LEN).join(" or ")}`);
+  }
+  const v = view(bytes, len, version, "telemetry");
+  const cv = version >= 3 ? v.getUint16(14, true) : 0;
   const soc = v.getUint8(5);
   const flags = v.getUint8(8);
   const err = v.getUint8(9);
@@ -79,6 +97,7 @@ export function parseTelemetry(bytes: Uint8Array): Telemetry {
     motorLink: (flags & 4) !== 0,
     error: err === 0 ? null : err === 0xff ? "link" : err.toString(16).toUpperCase().padStart(2, "0"),
     odoKm: v.getUint32(10, true) / 10,
+    packV: cv === 0 ? null : cv / 100,
   };
 }
 

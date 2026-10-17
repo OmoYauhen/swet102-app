@@ -1,8 +1,8 @@
 import { Telemetry } from "../protocol";
 
 /**
- * The last telemetry, kept after a disconnect: battery, assist, lights and the
- * odometer stay as they were; the bike isn't moving or pulling power any more.
+ * The last telemetry, kept after a disconnect: battery and pack voltage, assist,
+ * lights and the odometer stay as they were; the bike isn't moving or pulling power any more.
  */
 export function stale(t: Telemetry | null): Telemetry | null {
   return t && { ...t, speedKmh: 0, powerW: 0, walk: false, motorLink: false, error: null };
