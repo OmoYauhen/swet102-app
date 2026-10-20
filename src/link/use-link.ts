@@ -69,6 +69,16 @@ function useNativeLink(): LinkView {
         setView((v) => ({ ...v, log: [...v.log, e].slice(-30) })),
       ),
     ];
+    // Whatever changed between the first snapshot and these listeners (e.g.
+    // "connected" while the app was starting) would otherwise be lost.
+    const s = SwetLink.getSnapshot();
+    setView((v) => ({
+      ...v,
+      state: s.state,
+      ...(s.telemetry && s.telemetryAt > (v.telemetryAt ?? 0)
+        ? { telemetry: safe(() => parseTelemetry(fromHex(s.telemetry!))) ?? v.telemetry, telemetryAt: s.telemetryAt }
+        : {}),
+    }));
     return () => subs.forEach((s) => s.remove());
   }, []);
 
