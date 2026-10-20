@@ -24,6 +24,10 @@ import expo.modules.kotlin.modules.ModuleDefinition
  */
 @SuppressLint("MissingPermission") // JS asks for the Bluetooth permissions first
 class SwetLinkModule : Module() {
+    private val listener = object : Bus.Listener {
+        override fun onEvent(name: String, body: Map<String, Any?>) = sendEvent(name, body)
+    }
+
     private val context: Context
         get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
@@ -32,12 +36,14 @@ class SwetLinkModule : Module() {
 
         Events("onState", "onTelemetry", "onTrip", "onLog", "onDfu")
 
-        OnStartObserving {
-            Bus.listener = object : Bus.Listener {
-                override fun onEvent(name: String, body: Map<String, Any?>) = sendEvent(name, body)
-            }
+        // Hooked to onState, which the app listens to for as long as it runs. The
+        // unfiltered variants fire per event, so the OTA tab dropping its onDfu
+        // listener used to cut every event. Clear only our own listener: a closed
+        // app's module can stop observing after a relaunched one started.
+        OnStartObserving("onState") { Bus.listener = listener }
+        OnStopObserving("onState") {
+            synchronized(Bus) { if (Bus.listener === listener) Bus.listener = null }
         }
-        OnStopObserving { Bus.listener = null }
 
         // The ride screen is a dashboard: keep the phone's screen on while the
         // app is in front. The flag only applies while the activity is visible.
