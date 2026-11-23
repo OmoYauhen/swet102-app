@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { FirmwareInfo, LinkSettings, SwetLink } from "../../modules/swet-link";
 import { LinkView } from "../link/use-link";
@@ -16,7 +16,7 @@ import {
   SEEN_TTL_MS,
   verdict,
 } from "../ota";
-import { Button, colors } from "./ui";
+import { Button, colors, Section } from "./ui";
 
 interface Chosen {
   uri: string;
@@ -33,8 +33,9 @@ interface Seen {
 /**
  * Firmware update over BLE (Nordic Secure DFU) to the display's bootloader,
  * which the rider starts by hand (M + PWR) and which advertises as SW102_DFU.
+ * Sections only: the settings page scrolls them.
  */
-export function OtaScreen({ link }: { link: LinkView }) {
+export function OtaSections({ link }: { link: LinkView }) {
   const native = SwetLink!;
   const [settings, setSettings] = useState<LinkSettings>(() => native.getSettings());
   const [chosen, setChosen] = useState<Chosen | null>(null);
@@ -134,8 +135,8 @@ export function OtaScreen({ link }: { link: LinkView }) {
   const v = chosen ? verdict(chosen.info.fwVersion, settings.displayBuild) : null;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Section title="Display">
+    <>
+      <Section title="Firmware">
         <Text style={styles.text}>
           {installed !== null
             ? `Installed build ${formatBuild(installed)}`
@@ -147,9 +148,6 @@ export function OtaScreen({ link }: { link: LinkView }) {
         <Text style={styles.hint}>
           As read from the display the last time the app was connected to it.
         </Text>
-      </Section>
-
-      <Section title="Firmware">
         <Button title="Choose firmware (.zip)" onPress={choose} disabled={running} />
         {pickError && <Text style={styles.error}>{pickError}</Text>}
         {chosen && (
@@ -216,30 +214,11 @@ export function OtaScreen({ link }: { link: LinkView }) {
           )}
         </Section>
       )}
-    </ScrollView>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.heading}>{title}</Text>
-      {children}
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 20 },
-  section: {
-    backgroundColor: "#0e1218",
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
-  },
-  heading: { color: colors.text, fontSize: 18, fontWeight: "700" },
   text: { color: colors.text },
   muted: { color: colors.muted },
   hint: { color: colors.muted, fontSize: 13 },

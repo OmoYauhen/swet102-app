@@ -27,7 +27,21 @@ class Settings(context: Context) {
         get() = prefs.getString("haToken", "") ?: ""
         set(v) = prefs.edit().putString("haToken", v).apply()
 
-    /** Push the battery to Home Assistant (needs [haUrl] and [haToken] too). */
+    /** Home Assistant for the battery; blank: the gates' [haUrl]. */
+    var haBatteryUrl: String
+        get() = prefs.getString("haBatteryUrl", "") ?: ""
+        set(v) = prefs.edit().putString("haBatteryUrl", v).apply()
+
+    /** Token for [haBatteryUrl]; blank: the gates' [haToken]. */
+    var haBatteryToken: String
+        get() = prefs.getString("haBatteryToken", "") ?: ""
+        set(v) = prefs.edit().putString("haBatteryToken", v).apply()
+
+    /** The server the battery goes to: its own, or the gates' where left blank. */
+    val batteryServer: Pair<String, String>
+        get() = haBatteryUrl.ifBlank { haUrl } to haBatteryToken.ifBlank { haToken }
+
+    /** Push the battery to Home Assistant (needs a URL and a token, see [batteryServer]). */
     var haBattery: Boolean
         get() = prefs.getBoolean("haBattery", true)
         set(v) = prefs.edit().putBoolean("haBattery", v).apply()

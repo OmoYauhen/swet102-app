@@ -39,8 +39,12 @@ export interface LinkSettings {
   gateAEntity: string;
   gateBService: string;
   gateBEntity: string;
-  /** Push state of charge and pack voltage to Home Assistant (with haUrl + haToken). */
+  /** Push state of charge and pack voltage to Home Assistant. */
   haBattery: boolean;
+  /** Home Assistant for the battery; "" means the gates' haUrl. */
+  haBatteryUrl: string;
+  /** Token for haBatteryUrl; "" means the gates' haToken. */
+  haBatteryToken: string;
   /** input_number helper for the state of charge, 0–100 %. */
   haSocEntity: string;
   /** input_number helper for the pack voltage, 0–60 V. */
@@ -111,7 +115,7 @@ declare class SwetLinkModule extends NativeModule<Events> {
     gateBService: string,
     gateBEntity: string,
   ): void;
-  saveBatteryReport(on: boolean, socEntity: string, voltageEntity: string): void;
+  saveBatteryReport(on: boolean, url: string, token: string, socEntity: string, voltageEntity: string): void;
   /** Scan for "swet102" and remember its address. Resolves null if not found. */
   pair(timeoutMs: number): Promise<string | null>;
   forget(): void;
