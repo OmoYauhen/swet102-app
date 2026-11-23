@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Linking, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { LinkSettings, SwetLink } from "../../modules/swet-link";
 import { LinkView } from "../link/use-link";
 import { requestLinkPermissions, requestLocationPermission } from "../link/permissions";
-import { Button, colors, StatusBadge } from "./ui";
+import { Button, colors, Section, StatusBadge } from "./ui";
 
-/** First-run pairing, the link switch and Home Assistant for the gates and the battery. */
-export function SetupScreen({ link }: { link: LinkView }) {
+/**
+ * First-run pairing, the link switch and Home Assistant for the gates and the
+ * battery. Sections only: the settings page scrolls them.
+ */
+export function SetupSections({ link }: { link: LinkView }) {
   const native = SwetLink!;
   const [s, setS] = useState<LinkSettings>(() => native.getSettings());
   const [busy, setBusy] = useState<string | null>(null);
@@ -65,7 +68,7 @@ export function SetupScreen({ link }: { link: LinkView }) {
   }
 
   function saveBattery(on = s.haBattery) {
-    native.saveBatteryReport(on, s.haSocEntity, s.haVoltageEntity);
+    native.saveBatteryReport(on, s.haBatteryUrl, s.haBatteryToken, s.haSocEntity, s.haVoltageEntity);
     reload();
   }
 
@@ -91,7 +94,7 @@ export function SetupScreen({ link }: { link: LinkView }) {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <>
       <Section title="Display">
         <StatusBadge state={link.state} />
         {s.address ? (
@@ -145,6 +148,8 @@ export function SetupScreen({ link }: { link: LinkView }) {
           <Text style={styles.text}>Report battery to Home Assistant</Text>
           <Switch value={s.haBattery} onValueChange={(on) => saveBattery(on)} />
         </View>
+        {field("haBatteryUrl", "URL (blank: same as the gates)")}
+        {field("haBatteryToken", "Access token (blank: same as the gates)", true)}
         <Text style={styles.label}>State of charge (%)</Text>
         {field("haSocEntity", "input_number.e_bike_battery_soc_raw")}
         <Text style={styles.label}>Pack voltage (V)</Text>
@@ -153,36 +158,18 @@ export function SetupScreen({ link }: { link: LinkView }) {
           <Button title="Save" onPress={() => saveBattery()} />
         </View>
         <Text style={styles.hint}>
-          Uses the URL and token above. While connected, sets the input_number helpers
-          right away and then at most once a minute when a value changes.
+          Can go to a different Home Assistant than the gates; a blank URL or token
+          uses the gates' one. While connected, sets the input_number helpers right
+          away and then at most once a minute when a value changes.
         </Text>
       </Section>
 
       {busy && <Text style={styles.text}>{busy}</Text>}
-    </ScrollView>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.heading}>{title}</Text>
-      {children}
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 20 },
-  section: {
-    backgroundColor: "#0e1218",
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
-  },
-  heading: { color: colors.text, fontSize: 18, fontWeight: "700" },
   text: { color: colors.text },
   label: { color: colors.muted, marginTop: 6 },
   hint: { color: colors.muted, fontSize: 13 },

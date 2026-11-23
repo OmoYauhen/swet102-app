@@ -16,7 +16,7 @@ handlebar becomes a notification over BLE; this app turns it into:
 
 It also shows the display's telemetry (speed, power, battery % and pack
 voltage, PAS, city/sport, lights, motor errors) and trips (ride, trip, battery
-trip, odometer with max/avg/Ah), and updates the display's firmware over Bluetooth (**OTA** tab).
+trip, odometer with max/avg/Ah), and updates the display's firmware over Bluetooth (in settings, the **cog**).
 
 The display has no clock, so the app also sends it the **time of day and
 today's sunset and sunrise**. The display's Lights **AUTO** mode uses them to
@@ -51,7 +51,7 @@ state and edits settings.
   Android connects in the background whenever the display turns on. No scanning
   after the first pairing. On every connect it reads the firmware build and
   version from Device Information (Software Revision `0x2A28`, Firmware Revision
-  `0x2A26`; skipped on older firmware) and saves them for the OTA tab, then
+  `0x2A26`; skipped on older firmware) and saves them for the firmware update, then
   subscribes to commands, telemetry and trips again (the display doesn't bond,
   so it keeps no subscriptions). It starts again after a phone reboot or an app update, if it was on.
 - **Commands**: volume through `AudioManager`, tracks and play/pause as media key
@@ -72,7 +72,7 @@ state and edits settings.
   (a slow HA never holds up a gate); a failure is logged once and retried with
   the next value. No buzz.
 - **Feedback** for gates, since you can't look at the phone while riding: **one
-  short buzz** means it worked, **three** mean it failed. The Ride tab lists the
+  short buzz** means it worked, **three** mean it failed. The Ride screen lists the
   recent commands and gate results.
 
 - **Firmware update** (`DfuService`, Nordic's
@@ -91,13 +91,14 @@ v2 (14 bytes) from older display builds is still read, without the voltage.
 
 ## Setup
 
-1. Install the app (below), open **Setup → Find swet102** with the display on.
-   That saves its address and starts the link.
+1. Install the app (below), tap the **cog** (top right) → **Find swet102**
+   with the display on. That saves its address and starts the link. (The app
+   opens on the Ride dashboard; the cog or Android back returns to it.)
    It also asks for **approximate location**, only for sunrise and sunset
    (Lights AUTO). It's optional: the app reads the location Android last had
    (no GPS fix, no Google Play services) and remembers it; without it, it uses
    the last place it knew, or Warsaw.
-2. Allow the app to **ignore battery optimisation** (button in Setup); some
+2. Allow the app to **ignore battery optimisation** (button in settings); some
    phones kill background services otherwise.
 3. **Gates:** enter your Home Assistant URL and a
    [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile)
@@ -106,15 +107,18 @@ v2 (14 bytes) from older display builds is still read, without the voltage.
    `script.turn_on` + `script.open_gate`. The app sends
    `POST <url>/api/services/<domain>/<service>` with `{"entity_id": "<entity>"}`.
    **Test A / Test B** run the same call.
-4. **Battery** (optional, on by default): with the same URL and token the app
-   reports the battery to `input_number.e_bike_battery_soc_raw` (0–100 %) and
+4. **Battery** (optional, on by default): the app reports the battery to
+   `input_number.e_bike_battery_soc_raw` (0–100 %) and
    `input_number.e_bike_battery_voltage_raw` (0–60 V, step 0.1). Both entity
-   ids can be changed in Setup; the switch turns the reporting off.
+   ids can be changed in settings; the switch turns the reporting off. It can
+   go to a different Home Assistant: give it its own URL and token, or leave
+   them blank to use the gates' ones.
 
 The URL must be reachable from wherever you ride (Nabu Casa, your own HTTPS
-domain, or a VPN). The token is kept in the app's private storage on the phone.
+domain, or a VPN); plain `http://` works too, e.g. on the home Wi-Fi. The
+token is kept in the app's private storage on the phone.
 
-## Firmware update (OTA tab)
+## Firmware update (settings)
 
 1. **Choose firmware (.zip)**: a release package from swet102 (`make release` →
    `build/swet102-<YYMMDDHH>.zip`). The app reads its `manifest.json` and init
@@ -122,7 +126,7 @@ domain, or a VPN). The token is kept in the app's private storage on the phone.
    application packages are accepted; the image's size and SHA-256 must match
    the init packet.
 2. Put the display into its bootloader by hand: **display off, then hold M + PWR
-   for 8 s** until it shows up as `SW102_DFU`. The tab keeps scanning for it
+   for 8 s** until it shows up as `SW102_DFU`. The page keeps scanning for it
    and shows its signal strength.
 3. **Version check.** The bootloader only accepts a build (the init packet's
    `fw_version`, swet102's `VERSION_NUM`) newer than the installed one; anything

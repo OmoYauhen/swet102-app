@@ -395,7 +395,8 @@ class SwetLinkService : Service() {
 
     /** Fire-and-forget; a failure only logs (once) and lets the next value retry. */
     private fun reportValue(throttle: HomeAssistant.Throttle, entity: String, value: Number, now: Long) {
-        val (req, _) = HomeAssistant.setValue(settings.haUrl, settings.haToken, entity, value)
+        val (url, token) = settings.batteryServer
+        val (req, _) = HomeAssistant.setValue(url, token, entity, value)
         if (req == null || !throttle.offer(value.toDouble(), now)) return // not set up, or not due
         batteryHttp.execute {
             val error = when (val r = HomeAssistant.send(req)) {

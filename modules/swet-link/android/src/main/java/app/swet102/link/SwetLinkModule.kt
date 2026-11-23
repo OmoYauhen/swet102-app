@@ -72,6 +72,8 @@ class SwetLinkModule : Module() {
                 "gateBService" to b.service,
                 "gateBEntity" to b.entityId,
                 "haBattery" to s.haBattery,
+                "haBatteryUrl" to s.haBatteryUrl,
+                "haBatteryToken" to s.haBatteryToken,
                 "haSocEntity" to s.haSocEntity,
                 "haVoltageEntity" to s.haVoltageEntity,
                 "displayBuild" to s.displayBuild,
@@ -88,9 +90,12 @@ class SwetLinkModule : Module() {
             s.setGate('B', HomeAssistant.Gate(bService.trim(), bEntity.trim()))
         }
 
-        Function("saveBatteryReport") { on: Boolean, socEntity: String, voltageEntity: String ->
+        Function("saveBatteryReport") { on: Boolean, url: String, token: String,
+                                         socEntity: String, voltageEntity: String ->
             val s = Settings(context)
             s.haBattery = on
+            s.haBatteryUrl = url.trim()
+            s.haBatteryToken = token.trim()
             s.haSocEntity = socEntity.trim()
             s.haVoltageEntity = voltageEntity.trim()
         }

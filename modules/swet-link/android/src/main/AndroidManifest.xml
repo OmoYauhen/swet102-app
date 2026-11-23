@@ -19,7 +19,9 @@
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
-    <application>
+    <!-- Home Assistant is often plain http on the LAN or over a VPN; Android 9+
+         refuses cleartext unless the app allows it -->
+    <application android:usesCleartextTraffic="true">
         <service
             android:name="app.swet102.link.SwetLinkService"
             android:exported="false"

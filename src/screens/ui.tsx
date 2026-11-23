@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinkState } from "../../modules/swet-link";
 
@@ -51,7 +52,25 @@ export function Button({
   );
 }
 
+export function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  section: {
+    backgroundColor: "#0e1218",
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+  },
+  heading: { color: colors.text, fontSize: 18, fontWeight: "700" },
   badge: { flexDirection: "row", alignItems: "center", gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   badgeText: { color: colors.muted, fontSize: 14 },
